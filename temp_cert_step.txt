@@ -1,0 +1,188 @@
+              {/* Step 5: Certificate Settings */}
+              {currentStep === 4 && (
+                <div className="space-y-8">
+                  <h2 className="text-xl font-semibold text-gray-900">Certificate Settings</h2>
+                  <p className="text-gray-600">Configure external certificate generation APIs for India and International students</p>
+
+                  {/* India Configuration */}
+                  <div className="border border-gray-200 rounded-lg p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">India Region</h3>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          {...methods.register('certificate_config_india.enabled')}
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Enable</span>
+                      </label>
+                    </div>
+
+                    {watch('certificate_config_india.enabled') && (
+                      <div className="space-y-4 pt-4 border-t">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Website URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_india.website_url')}
+                            placeholder="https://scratcholympiads.in/"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Certificate Issuance URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_india.certificate_issuance_url')}
+                            placeholder="https://scratcholympiads.in/wp-json/certificate-generator/v1/issue-certificate"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Health Check URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_india.health_check_url')}
+                            placeholder="https://scratcholympiads.in/wp-json/certificate-generator/v1/health"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Key Validation URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_india.key_validation_url')}
+                            placeholder="https://scratcholympiads.in/wp-json/certificate-generator/v1/validate-key"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">API Key (Bearer Token)</label>
+                          <input
+                            type="text"
+                            {...methods.register('certificate_config_india.api_key')}
+                            placeholder="Enter API key"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Template ID (Optional)</label>
+                          <input
+                            type="text"
+                            {...methods.register('certificate_config_india.template_id')}
+                            placeholder="Enter template ID"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              {...methods.register('certificate_config_india.auto_generate')}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Auto-generate certificates on result upload</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* International Configuration */}
+                  <div className="border border-gray-200 rounded-lg p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">International Region</h3>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          {...methods.register('certificate_config_international.enabled')}
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Enable</span>
+                      </label>
+                    </div>
+
+                    {watch('certificate_config_international.enabled') && (
+                      <div className="space-y-4 pt-4 border-t">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Website URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_international.website_url')}
+                            placeholder="https://scratcholympiads.com/"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Certificate Issuance URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_international.certificate_issuance_url')}
+                            placeholder="https://scratcholympiads.com/wp-json/certificate-generator/v1/issue-certificate"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Health Check URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_international.health_check_url')}
+                            placeholder="https://scratcholympiads.com/wp-json/certificate-generator/v1/health"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Key Validation URL</label>
+                          <input
+                            type="url"
+                            {...methods.register('certificate_config_international.key_validation_url')}
+                            placeholder="https://scratcholympiads.com/wp-json/certificate-generator/v1/validate-key"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">API Key (Bearer Token)</label>
+                          <input
+                            type="text"
+                            {...methods.register('certificate_config_international.api_key')}
+                            placeholder="Enter API key"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Template ID (Optional)</label>
+                          <input
+                            type="text"
+                            {...methods.register('certificate_config_international.template_id')}
+                            placeholder="Enter template ID"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              {...methods.register('certificate_config_international.auto_generate')}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Auto-generate certificates on result upload</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+

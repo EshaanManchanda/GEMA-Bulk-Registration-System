@@ -1,0 +1,169 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Restrict permissions to minimum required
+permissions:
+  contents: read
+  actions: read
+
+# Prevent concurrent deployments to same environment
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Job 1: Lint and Build Client
+  client-check:
+    name: Client Lint & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./client
+        run: npm ci --ignore-scripts
+
+      - name: Run postinstall scripts safely
+        working-directory: ./client
+        run: npm rebuild
+
+      - name: Audit dependencies
+        working-directory: ./client
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Run linter
+        working-directory: ./client
+        run: npm run lint
+
+      - name: Build client
+        working-directory: ./client
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        with:
+          name: client-build
+          path: client/dist
+          retention-days: 7
+
+  # Job 2: Build Server
+  server-check:
+    name: Server Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci --ignore-scripts
+
+      - name: Run postinstall scripts safely
+        working-directory: ./server
+        run: npm rebuild
+
+      - name: Audit dependencies
+        working-directory: ./server
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Syntax check
+        working-directory: ./server
+        run: node --check server.js
+
+      - name: Run linter
+        working-directory: ./server
+        run: npm run lint
+        continue-on-error: true
+
+  # Job 3: Deploy to Production (main branch only)
+  deploy-production:
+    name: Deploy to Production
+    needs: [client-check, server-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://your-domain.com
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy to Production VPS
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /var/www/gema || exit 1
+            git fetch origin main --depth=1
+            git reset --hard origin/main
+            cd server && npm ci --production --ignore-scripts && npm rebuild
+            pm2 reload ecosystem.config.js --env production
+            cd ../client && npm ci --ignore-scripts && npm rebuild && npm run build
+            sudo systemctl reload nginx
+            echo "Production deployment complete at $(date -u)"
+
+  # Job 4: Deploy to Staging (develop branch only)
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [client-check, server-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.your-domain.com
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy to Staging VPS
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /var/www/gema-staging || exit 1
+            git fetch origin develop --depth=1
+            git reset --hard origin/develop
+            cd server && npm ci --production --ignore-scripts && npm rebuild
+            pm2 reload ecosystem.config.js --env staging
+            cd ../client && npm ci --ignore-scripts && npm rebuild && npm run build
+            sudo systemctl reload nginx
+            echo "Staging deployment complete at $(date -u)"

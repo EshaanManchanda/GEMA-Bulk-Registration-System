@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Configuration file for bulk admin creation. Copy this file to 'admin-config.json' and customize as needed.",
+  "admins": [
+    {
+      "email": "super@gema-events.com",
+      "password": "SuperSecure123!@#",
+      "name": "Super Administrator",
+      "role": "super_admin",
+      "phone": "+1234567890"
+    },
+    {
+      "email": "admin@gema-events.com",
+      "password": "AdminPass123!",
+      "name": "Regular Admin",
+      "role": "admin",
+      "phone": "+1234567891"
+    },
+    {
+      "email": "moderator@gema-events.com",
+      "password": "ModPass123!",
+      "name": "Content Moderator",
+      "role": "moderator",
+      "phone": "+1234567892"
+    }
+  ],
+  "_comments": {
+    "required_fields": ["email", "password", "name", "role"],
+    "optional_fields": ["phone"],
+    "valid_roles": ["super_admin", "admin", "moderator"],
+    "password_requirements": "Minimum 8 characters, include uppercase, lowercase, numbers recommended",
+    "note": "Remove this '_comments' section when creating your actual config file"
+  }
+}

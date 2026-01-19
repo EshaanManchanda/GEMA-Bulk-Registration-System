@@ -1,0 +1,4 @@
+website_url,certificate_issuance,health,key_validation,"
+api_key"
+https://scratcholympiads.com/,https://scratcholympiads.com/wp-json/certificate-generator/v1/issue-certificate,https://scratcholympiads.com/wp-json/certificate-generator/v1/health,https://scratcholympiads.com/wp-json/certificate-generator/v1/validate-key,6dd423c7a11e4983280d511a3f59004035fc52292655cb1bfd7695e8ea867907
+https://scratcholympiads.in/,https://scratcholympiads.in/wp-json/certificate-generator/v1/issue-certificate,https://scratcholympiads.in/wp-json/certificate-generator/v1/health,https://scratcholympiads.in/wp-json/certificate-generator/v1/validate-key,61dd736411ce62c661ff8d46e9662b113b1b1258b0334aaca45e0138e25a1ee9

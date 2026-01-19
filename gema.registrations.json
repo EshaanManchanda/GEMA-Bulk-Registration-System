@@ -1,0 +1,90 @@
+[{
+  "_id": {
+    "$oid": "6952bfb75f231c7156de9f2e"
+  },
+  "batch_id": {
+    "$oid": "6952bfb75f231c7156de9f2c"
+  },
+  "event_id": {
+    "$oid": "693a833e62b93a0f954df883"
+  },
+  "school_id": {
+    "$oid": "693a65dddec098685935605d"
+  },
+  "student_name": "Shaan",
+  "grade": "12",
+  "section": "B",
+  "dynamic_data": {
+    "test": "Sample text"
+  },
+  "status": "registered",
+  "attendance_marked": false,
+  "registration_id": "REG-MJRGGMZL-OWTZD",
+  "created_at": {
+    "$date": "2025-12-29T17:51:51.393Z"
+  },
+  "updated_at": {
+    "$date": "2025-12-29T17:51:51.393Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69669024bcfd6e012b20315f"
+  },
+  "batch_id": {
+    "$oid": "69669024bcfd6e012b20315d"
+  },
+  "event_id": {
+    "$oid": "693a833e62b93a0f954df883"
+  },
+  "school_id": {
+    "$oid": "693a65dddec098685935605d"
+  },
+  "student_name": "Shaan",
+  "grade": "12",
+  "section": "b",
+  "dynamic_data": {
+    "test": "15"
+  },
+  "status": "registered",
+  "attendance_marked": false,
+  "registration_id": "REG-MKCXKVRX-ONMWW",
+  "created_at": {
+    "$date": "2026-01-13T18:34:12.573Z"
+  },
+  "updated_at": {
+    "$date": "2026-01-13T18:34:12.573Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69669024bcfd6e012b203161"
+  },
+  "batch_id": {
+    "$oid": "69669024bcfd6e012b20315d"
+  },
+  "event_id": {
+    "$oid": "693a833e62b93a0f954df883"
+  },
+  "school_id": {
+    "$oid": "693a65dddec098685935605d"
+  },
+  "student_name": "Akash",
+  "grade": "12",
+  "section": "b",
+  "dynamic_data": {
+    "test": "20"
+  },
+  "status": "registered",
+  "attendance_marked": false,
+  "registration_id": "REG-MKCXKVSR-15AB5",
+  "created_at": {
+    "$date": "2026-01-13T18:34:12.603Z"
+  },
+  "updated_at": {
+    "$date": "2026-01-13T18:34:12.603Z"
+  },
+  "__v": 0
+}]

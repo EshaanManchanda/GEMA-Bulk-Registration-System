@@ -1,0 +1,191 @@
+ AI Chatbot Integration Plan
+
+ Goal
+
+ Consolidate AI Chatbot functionality from AI Chatbot/client and AI Chatbot/server into existing client/ and server/ directories, maintaining bulk registration features while    
+ adding AI chat capabilities.
+
+ Approach
+
+ Integrate HuggingFace-powered chatbot as new feature in bulk registration system:
+ - Backend: Add chatbot routes to /api/v1/chatbot/*
+ - Frontend: TailwindCSS chat widget on school/admin/public pages
+ - Auth: Use existing School/Admin models (optionalAuth for public)
+ - Data: Use Event model (replace Website), no migration needed
+
+ Implementation Sequence
+
+ 1. Backend - Core Services
+
+ server/src/services/chatbot/huggingface.service.js [NEW]
+ - Extract AI logic from AI Chatbot/server/routes/chat.js
+ - detectIntent() - classify user intent (greeting, certificate, event_info, payment, registration)
+ - extractEventInfo() - extract event names from messages
+ - extractEmail() - extract emails for certificate lookups
+ - Config: INTENT_CLASSIFICATION_MODEL, QA_MODEL from .env
+
+ server/src/services/chatbot/certificate.service.js [NEW]
+ - generateCertificate(eventId, email, country) - integrate with Event model
+ - Use Event.certificate_config_india if country='India', else certificate_config_international
+ - Call external cert API with event's api_key
+ - Return certificate URL
+
+ 2. Backend - Data Model
+
+ server/src/models/Chat.js [NEW]
+ {
+   session_id: String (unique),
+   user_id: ObjectId (ref School/Admin, optional),
+   user_type: 'school'|'admin'|'anonymous',
+   messages: [{
+     text: String,
+     sender: 'user'|'bot',
+     timestamp: Date,
+     data: { intent, confidence, event_id, certificate_url }
+   }],
+   event_context: ObjectId (ref Event),
+   is_active: Boolean,
+   last_activity: Date
+ }
+
+ 3. Backend - Controller & Routes
+
+ server/src/controllers/chatbot/chat.controller.js [NEW]
+ - sendMessage() - process chat, detect intent, query Event model, return response
+ - getHistory() - fetch chat history by session_id
+ - getStats() - admin analytics (total chats, intents distribution)
+
+ Intent routing:
+ - greeting → Welcome message
+ - certificate → Extract email, lookup Event, generate cert using School.country
+ - event_info → Return Event details (dates, description, pricing)
+ - payment → Return payment link from Event/Batch
+ - registration → Guide through registration process
+
+ server/src/routes/chatbot.routes.js [NEW]
+ POST /api/v1/chatbot/message       (optionalAuth)
+ GET  /api/v1/chatbot/history/:id   (requireAuth)
+ GET  /api/v1/chatbot/stats         (requireAuth + requireAdmin)
+
+ server/src/middleware/auth.middleware.js [UPDATE]
+ Add optionalAuth() - continue without auth if no token, decode if present
+
+ server/src/app.js [UPDATE]
+ Mount: app.use('/api/v1/chatbot', chatbotRoutes)
+
+ 4. Backend - Dependencies
+
+ server/package.json [UPDATE]
+ Add: "@huggingface/inference": "^4.5.2"
+
+ server/.env [UPDATE]
+ HF_TOKEN=your_huggingface_token
+ INTENT_CLASSIFICATION_MODEL=Falconsai/intent_classification
+ QA_MODEL=deepset/roberta-base-squad2
+ CHAT_SESSION_TIMEOUT=7200000
+
+ 5. Frontend - State Management
+
+ client/src/stores/chatStore.js [NEW]
+ Zustand store:
+ {
+   messages: [],
+   isOpen: false,
+   isLoading: false,
+   sessionId: null,
+   sendMessage(text),
+   toggleChat(),
+   clearHistory()
+ }
+
+ 6. Frontend - Components
+
+ client/src/components/chatbot/ChatWidget.jsx [NEW]
+ - Convert AI Chatbot/client/components/ChatWidget.jsx from MUI to TailwindCSS
+ - Use existing ui/ components (Button, Card, Input)
+ - Message list, input field, send button
+ - API: POST /api/v1/chatbot/message
+ - Display certificate/payment links as interactive buttons
+
+ client/src/components/chatbot/ChatButton.jsx [NEW]
+ - Floating button (bottom-right)
+ - Badge for unread messages
+ - Click → toggle ChatWidget
+
+ client/src/components/chatbot/ChatMessage.jsx [NEW]
+ - User vs bot message styling
+ - Render buttons for certificates/payments
+ - Timestamp display
+
+ 7. Frontend - Integration Points
+
+ client/src/layouts/SchoolLayout.jsx [UPDATE]
+ Add <ChatButton /> - visible on all school portal pages
+
+ client/src/layouts/AdminLayout.jsx [UPDATE]
+ Add <ChatButton /> - visible on all admin portal pages
+
+ client/src/pages/public/EventRegistration.jsx [UPDATE]
+ Add <ChatButton /> - help visitors with questions
+
+ 8. Frontend - Analytics Page
+
+ client/src/pages/admin/chatbot/ChatbotAnalytics.jsx [NEW]
+ - Total chats, messages, certificates requested
+ - Intent distribution chart (using recharts)
+ - Recent conversations list
+ - API: GET /api/v1/chatbot/stats
+
+ client/src/routes/index.jsx [UPDATE]
+ Add route: <Route path="admin/chatbot/analytics" element={<ChatbotAnalytics />} />
+
+ 9. Frontend - Dependencies
+
+ client/package.json [UPDATE]
+ No new deps needed (using TailwindCSS, not MUI)
+
+ 10. Cleanup
+
+ Delete:
+ - AI Chatbot/ directory (after verifying integration works)
+
+ Critical Files
+
+ Backend
+
+ - server/src/controllers/chatbot/chat.controller.js - Core chat logic
+ - server/src/services/chatbot/huggingface.service.js - AI intent detection
+ - server/src/services/chatbot/certificate.service.js - Cert generation
+ - server/src/models/Chat.js - Chat data schema
+ - server/src/routes/chatbot.routes.js - API endpoints
+ - server/src/middleware/auth.middleware.js - Add optionalAuth
+ - server/src/app.js - Mount routes
+
+ Frontend
+
+ - client/src/components/chatbot/ChatWidget.jsx - Main chat UI
+ - client/src/components/chatbot/ChatButton.jsx - Floating button
+ - client/src/stores/chatStore.js - State management
+ - client/src/pages/admin/chatbot/ChatbotAnalytics.jsx - Admin analytics
+ - client/src/layouts/SchoolLayout.jsx - Add chat button
+ - client/src/layouts/AdminLayout.jsx - Add chat button
+ - client/src/routes/index.jsx - Add routes
+
+ Key Decisions
+
+ 1. TailwindCSS over MUI - consistency with bulk reg design
+ 2. Location detection - Use School.country field (India vs International)
+ 3. Chat access - Public (anonymous) + authenticated (full features)
+ 4. Certificate integration - Use Event.certificate_config_india/international
+ 5. No data migration - Fresh start
+
+ Testing Checklist
+
+ - Intent detection accuracy
+ - Certificate generation (India/International)
+ - Event info retrieval
+ - Payment link generation
+ - Anonymous chat (public pages)
+ - Authenticated chat (school portal)
+ - Admin analytics
+ - Mobile responsiveness

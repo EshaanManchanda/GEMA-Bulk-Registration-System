@@ -1,0 +1,80 @@
+[{
+  "_id": {
+    "$oid": "693a833e62b93a0f954df883"
+  },
+  "title": "International Scratch Olympiad",
+  "event_slug": "test",
+  "description": "Welcome to the International Scratch Olympiad 2026, where creativity meets coding excellence!\n\nThe ultimate global competition where young innovators turn their creativity into code! This premier event brings together the brightest young minds from around the world to showcase their programming skills, problem-solving abilities, and imaginative storytelling using Scratch, the block-based coding platform developed by MIT.\n\nMode of Registration and Submission: The scratch project needs to be completed beforehand at school or at Home and the project link needs to be uploaded in the registration form above.\n\nLast Date to Register & Submit:14 February 2026\n\n\nTheme: Pollution \n\nStudents can create Scratch projects showing the causes & impact of pollution, also ways to protect our planet through games, animations, stories, or quizzes.",
+  "short_description": "The ultimate global competition where young innovators turn their creativity into code! This premier event brings together the brightest young minds from around the world to showcase their programming skills, problem-solving abilities, and imaginative storytelling using Scratch, the block-based coding platform developed by MIT.",
+  "status": "active",
+  "base_fee_inr": 500,
+  "base_fee_usd": 15,
+  "form_schema": [
+    {
+      "field_id": "test",
+      "field_label": "test",
+      "field_type": "text",
+      "is_required": false,
+      "placeholder": "",
+      "help_text": "",
+      "validation_rules": {
+        "minLength": null,
+        "maxLength": null
+      },
+      "order": 0
+    }
+  ],
+  "bulk_discount_rules": [],
+  "event_start_date": {
+    "$date": "2026-02-14T00:00:00.000Z"
+  },
+  "event_end_date": {
+    "$date": "2026-02-15T00:00:00.000Z"
+  },
+  "registration_start_date": {
+    "$date": "2025-12-11T00:00:00.000Z"
+  },
+  "registration_deadline": {
+    "$date": "2026-02-14T00:00:00.000Z"
+  },
+  "category": "olympiad",
+  "grade_levels": [
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12"
+  ],
+  "created_by": {
+    "$oid": "69382f30a2207717bff65674"
+  },
+  "is_featured": false,
+  "view_count": 0,
+  "registration_count": 0,
+  "created_at": {
+    "$date": "2025-12-11T08:39:26.852Z"
+  },
+  "updated_at": {
+    "$date": "2026-01-02T12:48:05.201Z"
+  },
+  "__v": 4,
+  "banner_image_url": "http://localhost:5000/api/v1/media/serve/6950fbdedbff4305205d3ce8",
+  "max_participants": null,
+  "certificate_config": {
+    "auto_generate": false,
+    "enabled": false
+  },
+  "certificate_config_india": {
+    "auto_generate": false,
+    "enabled": false
+  },
+  "certificate_config_international": {
+    "auto_generate": false,
+    "enabled": false
+  }
+}]
