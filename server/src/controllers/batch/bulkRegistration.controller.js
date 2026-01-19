@@ -10,6 +10,8 @@ const Payment = require('../../models/Payment');
 const School = require('../../models/School');
 const csvGenerator = require('../../services/csvGenerator.service');
 const csvParser = require('../../services/csvParser.service');
+const excelGenerator = require('../../services/excelGenerator.service');
+const excelParser = require('../../services/excelParser.service');
 const csvExport = require('../../services/csvExport.service');
 const currencyResolver = require('../../services/currencyResolver.service');
 const storageService = require('../../services/storage.service');
@@ -18,12 +20,13 @@ const { calculateDiscount, calculateTotalAmount, generateBatchReference } = requ
 const { BATCH_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 
 /**
- * @desc    Download CSV template for an event
+ * @desc    Download Excel template for an event
  * @route   GET /api/v1/batches/template/:eventSlug
  * @access  Private (School)
  */
 exports.downloadTemplate = asyncHandler(async (req, res, next) => {
   const { eventSlug } = req.params;
+  const { format = 'xlsx' } = req.query; // Support format query param for backward compat
 
   // Find event
   const event = await Event.findOne({ event_slug: eventSlug });
@@ -50,24 +53,24 @@ exports.downloadTemplate = asyncHandler(async (req, res, next) => {
     return next(new AppError('Registration period has ended', 400));
   }
 
-  // Generate CSV template
   try {
-    const buffer = csvGenerator.generateTemplate(event);
-    const filename = csvGenerator.generateFilename(event);
+    if (format === 'csv') {
+      // Legacy CSV format support
+      const buffer = csvGenerator.generateTemplate(event);
+      const filename = csvGenerator.generateFilename(event);
 
-    if (!buffer || buffer.length === 0) {
-      throw new Error('Generated template is empty');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+      res.send(buffer);
+
+      logger.info(`CSV template downloaded for event: ${event.title} by school: ${req.user.id}`);
+    } else {
+      // Stream Excel directly to avoid binary corruption
+      await excelGenerator.streamTemplate(event, res);
+
+      logger.info(`Excel template downloaded for event: ${event.title} by school: ${req.user.id}`);
     }
-
-    // Set headers for file download
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length);
-
-    // Send buffer
-    res.send(buffer);
-
-    logger.info(`CSV template downloaded for event: ${event.title} by school: ${req.user.id}`);
   } catch (error) {
     logger.error(`Template generation failed for event ${event.event_slug}:`, error);
     return next(new AppError(`Failed to generate template: ${error.message}`, 500));
@@ -75,7 +78,7 @@ exports.downloadTemplate = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * @desc    Validate CSV file without creating batch
+ * @desc    Validate spreadsheet file (Excel or CSV) without creating batch
  * @route   POST /api/v1/batches/validate
  * @access  Private (School)
  */
@@ -84,7 +87,7 @@ exports.validateCSV = asyncHandler(async (req, res, next) => {
 
   // Check if file uploaded
   if (!req.file) {
-    return next(new AppError('Please upload a CSV file', 400));
+    return next(new AppError('Please upload an Excel (.xlsx) or CSV file', 400));
   }
 
   // Find school
@@ -99,8 +102,18 @@ exports.validateCSV = asyncHandler(async (req, res, next) => {
     return next(new AppError('Event not found', 404));
   }
 
-  // Parse and validate CSV
-  const result = await csvParser.parseAndValidate(req.file.buffer, event);
+  // Determine file type and use appropriate parser
+  const isExcel = req.file.mimetype.includes('spreadsheet') ||
+                  req.file.mimetype.includes('excel') ||
+                  req.file.originalname.endsWith('.xlsx') ||
+                  req.file.originalname.endsWith('.xls');
+
+  let result;
+  if (isExcel) {
+    result = await excelParser.parseAndValidate(req.file.buffer, event);
+  } else {
+    result = await csvParser.parseAndValidate(req.file.buffer, event);
+  }
 
   // Cache validation result for later use in upload endpoint
   const validationId = await validationCache.set(school._id, eventSlug, {
@@ -120,14 +133,14 @@ exports.validateCSV = asyncHandler(async (req, res, next) => {
       currency: school.currency_pref || 'INR',
       summary: result.summary,
       errors: result.errors,
-      error_report: result.errors.length > 0 ? csvParser.generateErrorReport(result.errors) : null,
+      error_report: result.errors.length > 0 ? excelParser.formatErrors(result.errors) : null,
       validation_id: validationId
     }
   });
 });
 
 /**
- * @desc    Upload CSV and create batch registration
+ * @desc    Upload spreadsheet (Excel or CSV) and create batch registration
  * @route   POST /api/v1/batches/upload
  * @access  Private (School)
  */
@@ -136,7 +149,7 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
 
   // Check if file uploaded
   if (!req.file) {
-    return next(new AppError('Please upload a CSV file', 400));
+    return next(new AppError('Please upload an Excel (.xlsx) or CSV file', 400));
   }
 
   // Find school
@@ -181,21 +194,32 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Fallback: Parse and validate CSV if cache miss or no validationId provided
+  // Fallback: Parse and validate file if cache miss or no validationId provided
   if (!parseResult) {
-    logger.info('Cache miss or no validationId - parsing CSV file');
-    parseResult = await csvParser.parseAndValidate(req.file.buffer, event);
+    logger.info('Cache miss or no validationId - parsing uploaded file');
+
+    // Determine file type and use appropriate parser
+    const isExcel = req.file.mimetype.includes('spreadsheet') ||
+                    req.file.mimetype.includes('excel') ||
+                    req.file.originalname.endsWith('.xlsx') ||
+                    req.file.originalname.endsWith('.xls');
+
+    if (isExcel) {
+      parseResult = await excelParser.parseAndValidate(req.file.buffer, event);
+    } else {
+      parseResult = await csvParser.parseAndValidate(req.file.buffer, event);
+    }
   }
 
   // If validation failed, return errors
   if (!parseResult.success) {
     return res.status(400).json({
       status: 'fail',
-      message: 'CSV validation failed',
+      message: 'File validation failed',
       data: {
         summary: parseResult.summary,
         errors: parseResult.errors.slice(0, 50), // Limit errors
-        error_report: csvParser.generateErrorReport(parseResult.errors)
+        error_report: excelParser.formatErrors(parseResult.errors)
       }
     });
   }

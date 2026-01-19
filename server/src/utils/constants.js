@@ -87,6 +87,8 @@ module.exports = {
   // Allowed File Extensions
   ALLOWED_FILE_EXTENSIONS: {
     csv: ['.csv'],
+    excel: ['.xlsx', '.xls'],
+    spreadsheet: ['.csv', '.xlsx', '.xls'],
     image: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
     pdf: ['.pdf']
   },
@@ -99,6 +101,17 @@ module.exports = {
       'application/csv',
       'application/vnd.ms-excel' // Some systems send CSV as this
     ],
+    excel: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel' // .xls
+    ],
+    spreadsheet: [
+      'text/csv',
+      'text/plain',
+      'application/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ],
     image: ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'],
     pdf: ['application/pdf']
   },
@@ -106,6 +119,8 @@ module.exports = {
   // File Size Limits (in bytes)
   FILE_SIZE_LIMITS: {
     csv: 5 * 1024 * 1024, // 5MB
+    excel: 10 * 1024 * 1024, // 10MB
+    spreadsheet: 10 * 1024 * 1024, // 10MB
     image: 10 * 1024 * 1024,  // 10MB (updated for media library)
     pdf: 5 * 1024 * 1024     // 5MB
   },

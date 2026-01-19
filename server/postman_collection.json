@@ -1,0 +1,2557 @@
+{
+	"info": {
+		"_postman_id": "bulk-registration-api",
+		"name": "Bulk Registration System API",
+		"description": "API collection for the Bulk Registration System - Express.js backend with JWT authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "schoolToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "adminToken",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						},
+						"description": "Server health check endpoint"
+					}
+				}
+			]
+		},
+		{
+			"name": "Auth - School",
+			"item": [
+				{
+					"name": "Register School",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Sample School\",\n  \"email\": \"school@example.com\",\n  \"password\": \"Password123!\",\n  \"country\": \"United States\",\n  \"contact_person\": \"John Doe\",\n  \"phone\": \"+1234567890\",\n  \"address\": \"123 School Street, City, State 12345\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login School",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.token) {",
+									"    pm.collectionVariables.set('schoolToken', jsonData.data.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"school@example.com\",\n  \"password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "login"]
+						}
+					}
+				},
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "me"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"contact_person\": \"Jane Doe\",\n  \"phone\": \"+1987654321\",\n  \"address\": \"456 New Street, City, State 54321\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"currentPassword\": \"Password123!\",\n  \"newPassword\": \"NewPassword456!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/change-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "change-password"]
+						}
+					}
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"school@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/forgot-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "forgot-password"]
+						}
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"reset-token-here\",\n  \"password\": \"NewPassword789!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/reset-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "reset-password"]
+						}
+					}
+				},
+				{
+					"name": "Verify Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"verification-token-here\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/verify-email",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "verify-email"]
+						}
+					}
+				},
+				{
+					"name": "Resend Verification Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/resend-verification",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "resend-verification"]
+						}
+					}
+				},
+				{
+					"name": "Send OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/send-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "send-otp"]
+						}
+					}
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"otp\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/verify-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "verify-otp"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"refresh-token-here\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/school/refresh-token",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "school", "refresh-token"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Auth - Admin",
+			"item": [
+				{
+					"name": "Login Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.token) {",
+									"    pm.collectionVariables.set('adminToken', jsonData.data.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "login"]
+						}
+					}
+				},
+				{
+					"name": "Get Admin Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "me"]
+						}
+					}
+				},
+				{
+					"name": "Update Admin Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Admin Name\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Change Admin Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"currentPassword\": \"AdminPassword123!\",\n  \"newPassword\": \"NewAdminPassword456!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/change-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "change-password"]
+						}
+					}
+				},
+				{
+					"name": "Admin Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/forgot-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "forgot-password"]
+						}
+					}
+				},
+				{
+					"name": "Admin Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"reset-token-here\",\n  \"password\": \"NewAdminPassword789!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/reset-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "reset-password"]
+						}
+					}
+				},
+				{
+					"name": "Create Admin (SuperAdmin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"New Admin\",\n  \"email\": \"newadmin@example.com\",\n  \"password\": \"AdminPassword123!\",\n  \"role\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "create"]
+						}
+					}
+				},
+				{
+					"name": "Admin Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"refresh-token-here\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/refresh-token",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "refresh-token"]
+						}
+					}
+				},
+				{
+					"name": "Admin Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/admin/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "admin", "logout"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Batches",
+			"item": [
+				{
+					"name": "Download CSV Template",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/template/:eventSlug",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", "template", ":eventSlug"],
+							"variable": [
+								{"key": "eventSlug", "value": "event-slug-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Validate CSV",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": ""},
+								{"key": "event_slug", "value": "event-slug-here", "type": "text"}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/validate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", "validate"]
+						}
+					}
+				},
+				{
+					"name": "Upload Batch",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": ""},
+								{"key": "event_slug", "value": "event-slug-here", "type": "text"}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Get My Batches",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/school/my-batches?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", "school", "my-batches"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get My Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/school/statistics",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", "school", "statistics"]
+						}
+					}
+				},
+				{
+					"name": "Get Batch Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/:batchReference",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", ":batchReference"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Batch",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/:batchReference",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", ":batchReference"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Download Batch CSV",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/batches/:batchReference/download",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "batches", ":batchReference", "download"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Payments",
+			"item": [
+				{
+					"name": "Initiate Online Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"batch_reference\": \"BATCH-123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/initiate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", "initiate"]
+						}
+					}
+				},
+				{
+					"name": "Verify Stripe Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"payment_intent_id\": \"pi_xxxxxxxxxxxxx\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/verify/stripe",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", "verify", "stripe"]
+						}
+					}
+				},
+				{
+					"name": "Initiate Offline Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "batch_reference", "value": "BATCH-123456", "type": "text"},
+								{"key": "transaction_reference", "value": "TXN-123456", "type": "text"},
+								{"key": "receipt", "type": "file", "src": ""}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/offline",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", "offline"]
+						}
+					}
+				},
+				{
+					"name": "Get My Payments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/school/my-payments?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", "school", "my-payments"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Payment Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/:paymentId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", ":paymentId"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Download Payment Receipt",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/:paymentId/receipt",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", ":paymentId", "receipt"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Verify Offline Payment (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/:paymentId/verify",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", ":paymentId", "verify"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Reject Offline Payment (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejection_reason\": \"Invalid receipt\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/:paymentId/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payments", ":paymentId", "reject"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Invoices",
+			"item": [
+				{
+					"name": "Generate Invoice",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/invoices/generate/:paymentId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "invoices", "generate", ":paymentId"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Download Invoice",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/invoices/download/:batchReference",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "invoices", "download", ":batchReference"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Invoice URL",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/invoices/url/:batchReference",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "invoices", "url", ":batchReference"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get My Invoices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/invoices/school/my-invoices?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "invoices", "school", "my-invoices"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Regenerate Invoice (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/invoices/regenerate/:batchReference",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "invoices", "regenerate", ":batchReference"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Bulk Generate Invoices (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"batch_references\": [\"BATCH-123456\", \"BATCH-789012\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/invoices/bulk-generate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "invoices", "bulk-generate"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/dashboard/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "dashboard", "stats"]
+						}
+					}
+				},
+				{
+					"name": "Get Recent Activities",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/dashboard/activities?limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "dashboard", "activities"],
+							"query": [
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Revenue Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/dashboard/revenue?period=monthly",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "dashboard", "revenue"],
+							"query": [
+								{"key": "period", "value": "monthly"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Schools",
+			"item": [
+				{
+					"name": "Get All Schools",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools?page=1&limit=10&status=all",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"},
+								{"key": "status", "value": "all"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create School",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"New School\",\n  \"email\": \"newschool@example.com\",\n  \"password\": \"Password123!\",\n  \"country\": \"United States\",\n  \"contact_person\": \"John Smith\",\n  \"phone\": \"+1234567890\",\n  \"address\": \"123 School St\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools"]
+						}
+					}
+				},
+				{
+					"name": "Get School Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools/:schoolId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools", ":schoolId"],
+							"variable": [
+								{"key": "schoolId", "value": "school-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Approve School",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools/:schoolId/approve",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools", ":schoolId", "approve"],
+							"variable": [
+								{"key": "schoolId", "value": "school-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Suspend School",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Policy violation\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools/:schoolId/suspend",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools", ":schoolId", "suspend"],
+							"variable": [
+								{"key": "schoolId", "value": "school-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Activate School",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools/:schoolId/activate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools", ":schoolId", "activate"],
+							"variable": [
+								{"key": "schoolId", "value": "school-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update School",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated School Name\",\n  \"contact_person\": \"Jane Doe\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools/:schoolId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools", ":schoolId"],
+							"variable": [
+								{"key": "schoolId", "value": "school-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get School Registrations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools/:schoolId/registrations?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools", ":schoolId", "registrations"],
+							"variable": [
+								{"key": "schoolId", "value": "school-id-here"}
+							],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get School Payments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/schools/:schoolId/payments?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "schools", ":schoolId", "payments"],
+							"variable": [
+								{"key": "schoolId", "value": "school-id-here"}
+							],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Batches",
+			"item": [
+				{
+					"name": "Get Batch Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchReference",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchReference"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Verify Batch Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchReference/verify",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchReference", "verify"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Reject Batch Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Invalid payment proof\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchReference/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchReference", "reject"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Export Batch Registrations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchReference/export",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchReference", "export"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Batch",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchReference",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchReference"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Registration Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/registrations/:registrationId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "registrations", ":registrationId"],
+							"variable": [
+								{"key": "registrationId", "value": "registration-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Events",
+			"item": [
+				{
+					"name": "Create Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Math Olympiad 2024\",\n  \"event_slug\": \"math-olympiad-2024\",\n  \"description\": \"Annual mathematics competition\",\n  \"registration_start_date\": \"2024-01-01T00:00:00.000Z\",\n  \"registration_end_date\": \"2024-02-28T23:59:59.000Z\",\n  \"event_date\": \"2024-03-15T09:00:00.000Z\",\n  \"registration_fee\": 25.00,\n  \"currency\": \"USD\",\n  \"form_schema\": []\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events"]
+						}
+					}
+				},
+				{
+					"name": "Get All Events",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events?page=1&limit=10&status=all",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"},
+								{"key": "status", "value": "all"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Event Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Event",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Math Olympiad 2024 - Updated\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Event",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Toggle Event Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/toggle-status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "toggle-status"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Activate Event",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/activate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "activate"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Close Event",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/close",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "close"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Archive Event",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/archive",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "archive"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Event Batches",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/batches?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "batches"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Event Registrations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/registrations?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "registrations"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Event Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/analytics",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "analytics"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Export Event Registrations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/export?format=csv",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "export"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							],
+							"query": [
+								{"key": "format", "value": "csv"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Results",
+			"item": [
+				{
+					"name": "Upload Results CSV",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": ""}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/results/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "results", "upload"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Download Results Template",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/results/template",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "results", "template"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Event Results",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/results?page=1&limit=50",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "results"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "50"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Clear Event Results",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/results",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "results"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Batch Results",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchReference/results",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchReference", "results"],
+							"variable": [
+								{"key": "batchReference", "value": "BATCH-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Single Result",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"score\": 95,\n  \"rank\": 1,\n  \"grade\": \"A+\",\n  \"remarks\": \"Excellent performance\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/registrations/:registrationId/result",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "registrations", ":registrationId", "result"],
+							"variable": [
+								{"key": "registrationId", "value": "registration-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Certificates",
+			"item": [
+				{
+					"name": "Test Certificate Config",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/certificates/test",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "certificates", "test"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Generate Event Certificates",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/events/:eventId/generate-certificates",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "events", ":eventId", "generate-certificates"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Generate Batch Certificates",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchId/generate-certificates",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchId", "generate-certificates"],
+							"variable": [
+								{"key": "batchId", "value": "batch-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Batch Certificates",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/batches/:batchId/certificates",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "batches", ":batchId", "certificates"],
+							"variable": [
+								{"key": "batchId", "value": "batch-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Payments",
+			"item": [
+				{
+					"name": "Get All Payments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/payments?page=1&limit=10&status=all",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "payments"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"},
+								{"key": "status", "value": "all"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Pending Offline Payments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/payments/pending-offline?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "payments", "pending-offline"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Payment Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/payments/analytics?period=monthly",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "payments", "analytics"],
+							"query": [
+								{"key": "period", "value": "monthly"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Payment Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/payments/:paymentId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "payments", ":paymentId"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Verify Offline Payment",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/payments/:paymentId/verify",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "payments", ":paymentId", "verify"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Reject Offline Payment",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejection_reason\": \"Invalid receipt\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/payments/:paymentId/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "payments", ":paymentId", "reject"],
+							"variable": [
+								{"key": "paymentId", "value": "payment-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Media",
+			"item": [
+				{
+					"name": "Upload Media",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "files", "type": "file", "src": ""}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "media", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Get All Media",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/media?page=1&limit=20&type=image",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "media"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "type", "value": "image"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Media Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/media/:mediaId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "media", ":mediaId"],
+							"variable": [
+								{"key": "mediaId", "value": "media-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Media",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"alt_text\": \"Updated alt text\",\n  \"tags\": [\"event\", \"banner\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/media/:mediaId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "media", ":mediaId"],
+							"variable": [
+								{"key": "mediaId", "value": "media-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Media",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/media/:mediaId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "media", ":mediaId"],
+							"variable": [
+								{"key": "mediaId", "value": "media-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Bulk Delete Media",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"media_ids\": [\"media-id-1\", \"media-id-2\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/media/bulk-delete",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "media", "bulk-delete"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Settings",
+			"item": [
+				{
+					"name": "Update Brand Info",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Company Name\",\n  \"tagline\": \"Our tagline\",\n  \"logo_url\": \"https://example.com/logo.png\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/brand",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "brand"]
+						}
+					}
+				},
+				{
+					"name": "Get Settings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/settings",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "settings"]
+						}
+					}
+				},
+				{
+					"name": "Update Settings",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"allow_registrations\": true,\n  \"maintenance_mode\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/settings",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "settings"]
+						}
+					}
+				},
+				{
+					"name": "Get Admin Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/users?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "users"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Admin User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"New Admin\",\n  \"email\": \"newadmin@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "users"]
+						}
+					}
+				},
+				{
+					"name": "Update Admin User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Name\",\n  \"role\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/users/:userId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "users", ":userId"],
+							"variable": [
+								{"key": "userId", "value": "user-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Admin User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/users/:userId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "users", ":userId"],
+							"variable": [
+								{"key": "userId", "value": "user-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Export",
+			"item": [
+				{
+					"name": "Export Schools",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"format\": \"csv\",\n  \"filters\": {}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/export/schools",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "export", "schools"]
+						}
+					}
+				},
+				{
+					"name": "Export Events",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"format\": \"csv\",\n  \"filters\": {}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/export/events",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "export", "events"]
+						}
+					}
+				},
+				{
+					"name": "Export Registrations",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"format\": \"csv\",\n  \"filters\": {\n    \"event_id\": \"event-id-here\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/export/registrations",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "export", "registrations"]
+						}
+					}
+				},
+				{
+					"name": "Export Payments",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"format\": \"csv\",\n  \"filters\": {}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/export/payments",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "export", "payments"]
+						}
+					}
+				},
+				{
+					"name": "Export All Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"format\": \"json\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/export/all",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "export", "all"]
+						}
+					}
+				},
+				{
+					"name": "Create Database Backup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/backup/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "backup", "create"]
+						}
+					}
+				},
+				{
+					"name": "Get Backup Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/backup/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "admin", "backup", "status"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Form Builder",
+			"item": [
+				{
+					"name": "Get Event Form Schema by Slug (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/form-builder/events/slug/:eventSlug/schema",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "form-builder", "events", "slug", ":eventSlug", "schema"],
+							"variable": [
+								{"key": "eventSlug", "value": "event-slug-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Default Form Template",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/form-builder/templates/default",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "form-builder", "templates", "default"]
+						}
+					}
+				},
+				{
+					"name": "Update Event Form Schema",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"form_schema\": [\n    {\n      \"field_name\": \"student_name\",\n      \"field_type\": \"text\",\n      \"label\": \"Student Name\",\n      \"required\": true\n    },\n    {\n      \"field_name\": \"grade\",\n      \"field_type\": \"select\",\n      \"label\": \"Grade\",\n      \"required\": true,\n      \"options\": [\"1\", \"2\", \"3\", \"4\", \"5\"]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/form-builder/events/:eventId/schema",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "form-builder", "events", ":eventId", "schema"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Event Form Schema by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/form-builder/events/:eventId/schema",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "form-builder", "events", ":eventId", "schema"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Validate Form Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_id\": \"event-id-here\",\n  \"data\": {\n    \"student_name\": \"John Doe\",\n    \"grade\": \"5\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/form-builder/validate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "form-builder", "validate"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Public Events",
+			"item": [
+				{
+					"name": "Get All Public Events",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events"]
+						}
+					}
+				},
+				{
+					"name": "Get Event by Slug",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events/slug/:eventSlug",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events", "slug", ":eventSlug"],
+							"variable": [
+								{"key": "eventSlug", "value": "event-slug-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Event by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events/:eventId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events", ":eventId"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Fetch Certificate by Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"student@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events/:eventId/fetch-certificate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events", ":eventId", "fetch-certificate"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Chatbot",
+			"item": [
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"What events are available?\",\n  \"session_id\": \"session-id-here\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/message",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "message"]
+						}
+					}
+				},
+				{
+					"name": "Detect Intent Test",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"How do I register?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/detect-intent",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "detect-intent"]
+						}
+					}
+				},
+				{
+					"name": "Get Chat History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/history/:sessionId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "history", ":sessionId"],
+							"variable": [
+								{"key": "sessionId", "value": "session-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Submit Feedback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"session_id\": \"session-id-here\",\n  \"rating\": 5,\n  \"comment\": \"Very helpful!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/feedback",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "feedback"]
+						}
+					}
+				},
+				{
+					"name": "Export Conversation",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/export/:sessionId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "export", ":sessionId"],
+							"variable": [
+								{"key": "sessionId", "value": "session-id-here"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Chat Stats (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "stats"]
+						}
+					}
+				},
+				{
+					"name": "Get Conversation Trends (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/analytics/trends?period=weekly",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "analytics", "trends"],
+							"query": [
+								{"key": "period", "value": "weekly"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Performance Metrics (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{adminToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/chatbot/analytics/performance",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "chatbot", "analytics", "performance"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Registrations",
+			"item": [
+				{
+					"name": "Get Registration Result (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/registrations/:registrationId/result",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "registrations", ":registrationId", "result"],
+							"variable": [
+								{"key": "registrationId", "value": "REG-123456"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get School Results",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/registrations/school/results?page=1&limit=50",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "registrations", "school", "results"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "50"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get School Event Results",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{schoolToken}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/registrations/school/events/:eventId/results",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "registrations", "school", "events", ":eventId", "results"],
+							"variable": [
+								{"key": "eventId", "value": "event-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Brand",
+			"item": [
+				{
+					"name": "Get Brand Info (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/brand",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "brand"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Media",
+			"item": [
+				{
+					"name": "Serve Media (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/media/serve/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "media", "serve", ":id"],
+							"variable": [
+								{"key": "id", "value": "media-id-here"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Webhooks",
+			"item": [
+				{
+					"name": "Stripe Webhook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Stripe-Signature", "value": "stripe-signature-here"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/webhooks/stripe",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "webhooks", "stripe"]
+						},
+						"description": "Stripe webhook endpoint for payment events. Requires valid Stripe signature header."
+					}
+				}
+			]
+		}
+	]
+}

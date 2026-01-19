@@ -55,6 +55,28 @@ const csvFileFilter = (req, file, cb) => {
 };
 
 /**
+ * File filter for Excel files (.xlsx)
+ */
+const excelFileFilter = (req, file, cb) => {
+  if (ALLOWED_MIME_TYPES.excel.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Invalid file type. Only Excel files (.xlsx) are allowed.', 400), false);
+  }
+};
+
+/**
+ * File filter for spreadsheet files (CSV or Excel)
+ */
+const spreadsheetFileFilter = (req, file, cb) => {
+  if (ALLOWED_MIME_TYPES.spreadsheet.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Invalid file type. Only Excel (.xlsx) or CSV (.csv) files are allowed.', 400), false);
+  }
+};
+
+/**
  * File filter for image files
  */
 const imageFileFilter = (req, file, cb) => {
@@ -86,6 +108,28 @@ const uploadCSV = multer({
     fileSize: FILE_SIZE_LIMITS.csv
   }
 }).single('csv_file');
+
+/**
+ * Excel file upload configuration
+ */
+const uploadExcel = multer({
+  storage: memoryStorage,
+  fileFilter: excelFileFilter,
+  limits: {
+    fileSize: FILE_SIZE_LIMITS.excel
+  }
+}).single('excel_file');
+
+/**
+ * Spreadsheet file upload (Excel or CSV) - primary for bulk registration
+ */
+const uploadSpreadsheet = multer({
+  storage: memoryStorage,
+  fileFilter: spreadsheetFileFilter,
+  limits: {
+    fileSize: FILE_SIZE_LIMITS.spreadsheet
+  }
+}).single('file');
 
 /**
  * Image file upload configuration (for receipts, banners, etc.)
@@ -184,6 +228,8 @@ const validateFilesExist = (req, res, next) => {
 
 module.exports = {
   uploadCSV,
+  uploadExcel,
+  uploadSpreadsheet,
   uploadImage,
   uploadImages,
   uploadMediaLibrary,

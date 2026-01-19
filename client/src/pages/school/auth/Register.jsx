@@ -1,26 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { schoolRegisterSchema } from '../../../utils/validators';
 import { useAuth } from '../../../context/AuthContext';
 import { Button, Input, Select, Card } from '../../../components/ui';
 import Stepper from '../../../components/ui/Stepper';
 import { showError, showSuccess } from '../../../components/common/Toast';
-
-// Common countries list
-const COUNTRIES = [
-  { value: 'IN', label: 'India' },
-  { value: 'US', label: 'United States' },
-  { value: 'GB', label: 'United Kingdom' },
-  { value: 'CA', label: 'Canada' },
-  { value: 'AU', label: 'Australia' },
-  { value: 'SG', label: 'Singapore' },
-  { value: 'AE', label: 'United Arab Emirates' },
-  { value: 'MY', label: 'Malaysia' },
-  { value: 'NZ', label: 'New Zealand' },
-  { value: 'ZA', label: 'South Africa' },
-];
+import { COUNTRIES, COUNTRIES_MAP } from '../../../utils/constants';
 
 const steps = [
   { label: 'School Info', description: 'Basic details' },
@@ -40,9 +27,21 @@ const SchoolRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Transform countries for Select component
+  const countryOptions = useMemo(() =>
+    COUNTRIES.map(c => ({ value: c.code, label: c.name })),
+  []);
+
+  // Phone code options derived from countries
+  const phoneCodeOptions = useMemo(() =>
+    COUNTRIES.map(c => ({ value: c.phoneCode, label: `${c.phoneCode} (${c.name})` })),
+  []);
+
   const {
     register,
     handleSubmit,
+    watch,
+    control,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schoolRegisterSchema),
@@ -51,6 +50,7 @@ const SchoolRegister = () => {
       country: '',
       contact_person_name: '',
       email: '',
+      phone_country_code: '+91',
       phone: '',
       password: '',
       confirm_password: '',
@@ -60,6 +60,10 @@ const SchoolRegister = () => {
       postal_code: '',
     },
   });
+
+  // Auto-update phone code when country changes
+  const selectedCountry = watch('country');
+  const selectedCountryData = selectedCountry ? COUNTRIES_MAP[selectedCountry] : null;
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -72,6 +76,7 @@ const SchoolRegister = () => {
           name: data.contact_person_name,
           email: data.email,
           phone: data.phone,
+          phone_country_code: data.phone_country_code,
         },
         address: {
           street: data.address,
@@ -140,7 +145,7 @@ const SchoolRegister = () => {
                   {...register('country')}
                   label="Country"
                   placeholder="Select country"
-                  options={COUNTRIES}
+                  options={countryOptions}
                   error={errors.country?.message}
                   required
                 />
@@ -176,14 +181,31 @@ const SchoolRegister = () => {
                   required
                 />
 
-                <Input
-                  {...register('phone')}
-                  type="tel"
-                  label="Phone Number"
-                  placeholder="+91 9876543210"
-                  error={errors.phone?.message}
-                  required
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="w-36">
+                      <Select
+                        {...register('phone_country_code')}
+                        options={phoneCodeOptions}
+                        error={errors.phone_country_code?.message}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        {...register('phone')}
+                        type="tel"
+                        placeholder="9876543210"
+                        error={errors.phone?.message}
+                      />
+                    </div>
+                  </div>
+                  {errors.phone?.message && (
+                    <p className="mt-1 text-sm text-red-600">{errors.phone?.message}</p>
+                  )}
+                </div>
 
                 <Input
                   {...register('password')}

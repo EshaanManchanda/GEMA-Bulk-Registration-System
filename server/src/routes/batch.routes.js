@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, checkUserStatus } = require('../middleware/auth.middleware');
 const { requireSchool, requireVerifiedSchool } = require('../middleware/role.middleware');
-const { uploadCSV } = require('../middleware/upload.middleware');
+const { uploadSpreadsheet } = require('../middleware/upload.middleware');
 const { validate, validationSchemas } = require('../middleware/validate.middleware');
 const bulkRegistrationController = require('../controllers/batch/bulkRegistration.controller');
 
@@ -25,7 +25,7 @@ router.post(
   verifyToken,
   checkUserStatus,
   requireSchool,
-  uploadCSV,
+  uploadSpreadsheet,
   validate(validationSchemas.validateExcel),
   bulkRegistrationController.validateCSV
 );
@@ -37,7 +37,7 @@ router.post(
   checkUserStatus,
   requireSchool,
   requireVerifiedSchool,
-  uploadCSV,
+  uploadSpreadsheet,
   validate(validationSchemas.uploadBatch),
   bulkRegistrationController.uploadBatch
 );

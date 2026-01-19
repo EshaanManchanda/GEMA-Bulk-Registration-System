@@ -230,8 +230,11 @@ const FormSchemaBuilder = () => {
                   {field.field_type === 'select' && (
                     <select disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                       <option>{field.placeholder || 'Select an option'}</option>
-                      {field.field_options?.split(',').map((opt, i) => (
-                        <option key={i}>{opt.trim()}</option>
+                      {(Array.isArray(field.field_options)
+                        ? field.field_options
+                        : field.field_options?.split(',') || []
+                      ).map((opt, i) => (
+                        <option key={i}>{typeof opt === 'string' ? opt.trim() : opt}</option>
                       ))}
                     </select>
                   )}

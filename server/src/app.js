@@ -35,18 +35,28 @@ app.use(helmet({
 
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : ['http://localhost:5173'];
+
+// Debug: Log allowed origins on startup
+console.log('🔍 CORS Debug - Allowed Origins:', allowedOrigins);
+console.log('🔍 CORS Debug - Raw ALLOWED_ORIGINS env:', process.env.ALLOWED_ORIGINS);
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Debug: Log incoming origin
+    console.log('🔍 CORS Debug - Incoming Origin:', origin);
+
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      console.log('❌ CORS Debug - Origin REJECTED:', origin);
+      console.log('❌ CORS Debug - Allowed origins are:', allowedOrigins);
       return callback(new Error(msg), false);
     }
+    console.log('✅ CORS Debug - Origin ACCEPTED:', origin);
     return callback(null, true);
   },
   credentials: true,

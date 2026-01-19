@@ -1,7 +1,8 @@
-const Papa = require('papaparse');
+const ExcelJS = require('exceljs');
 const logger = require('../utils/logger');
 
 // Field types (matching existing constants)
+// Note: FILE type is treated as URL (accepts public links like Google Drive)
 const FIELD_TYPES = {
   TEXT: 'text',
   TEXTAREA: 'textarea',
@@ -11,79 +12,91 @@ const FIELD_TYPES = {
   SELECT: 'select',
   CHECKBOX: 'checkbox',
   URL: 'url',
-  FILE: 'file'
+  FILE: 'file' // Treated as URL - accepts public links
 };
 
 /**
- * CSV Parser and Validation Service
- * Parses and validates CSV files for bulk registration
+ * Excel Parser and Validation Service
+ * Parses and validates .xlsx files for bulk registration
  */
-class CsvParserService {
+class ExcelParserService {
   /**
-   * Parse and validate CSV file
-   * @param {Buffer} fileBuffer - CSV file buffer
+   * Parse and validate Excel file
+   * @param {Buffer} fileBuffer - Excel file buffer
    * @param {Object} event - Event object with form_schema
    * @returns {Promise<Object>} - Validation result
    */
   async parseAndValidate(fileBuffer, event) {
     try {
-      // Convert buffer to string
-      const csvString = fileBuffer.toString('utf-8').replace(/^\ufeff/, ''); // Remove BOM if present
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(fileBuffer);
 
-      // Parse CSV using PapaParse
-      const parsed = Papa.parse(csvString, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header.trim().replace(/\*$/, ''), // Remove asterisk from required fields
-        dynamicTyping: false, // Keep all as strings for manual validation
-        encoding: 'utf-8'
-      });
+      // Get the main data sheet (first visible sheet or 'Registrations')
+      let dataSheet = workbook.getWorksheet('Registrations');
+      if (!dataSheet) {
+        dataSheet = workbook.worksheets.find(ws => ws.state === 'visible');
+      }
+      if (!dataSheet) {
+        dataSheet = workbook.worksheets[0];
+      }
 
-      // Check for parsing errors
-      if (parsed.errors && parsed.errors.length > 0) {
-        const parsingErrors = parsed.errors.map(err => ({
-          row: err.row || 0,
-          field: 'CSV Parsing',
-          message: err.message || 'Malformed CSV file'
-        }));
-
+      if (!dataSheet) {
         return {
           success: false,
           data: [],
-          errors: parsingErrors,
-          summary: {
-            total: 0,
-            valid: 0,
-            invalid: parsingErrors.length
-          }
+          errors: [{ row: 0, field: 'File', message: 'No worksheet found in Excel file' }],
+          summary: { total: 0, valid: 0, invalid: 1 }
         };
       }
 
+      // Get headers from first row
+      const headerRow = dataSheet.getRow(1);
+      const headers = [];
+      headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        let headerValue = cell.value || '';
+        if (typeof headerValue === 'object' && headerValue.richText) {
+          headerValue = headerValue.richText.map(r => r.text).join('');
+        }
+        headers[colNumber] = String(headerValue).trim().replace(/\*$/, '');
+      });
+
       // Validate headers
-      const headerErrors = this._validateHeaders(parsed.meta.fields, event.form_schema);
+      const headerErrors = this._validateHeaders(headers, event.form_schema);
       if (headerErrors.length > 0) {
         return {
           success: false,
           data: [],
           errors: headerErrors,
-          summary: {
-            total: 0,
-            valid: 0,
-            invalid: headerErrors.length
-          }
+          summary: { total: 0, valid: 0, invalid: headerErrors.length }
         };
       }
 
-      // Parse and validate each row
+      // Build header index map for faster lookup
+      const headerMap = {};
+      headers.forEach((header, index) => {
+        if (header) {
+          headerMap[header.toLowerCase()] = index;
+        }
+      });
+
+      // Parse and validate each data row
       const validatedData = [];
       const errors = [];
+      let totalRows = 0;
 
-      parsed.data.forEach((row, index) => {
-        // Skipped sample row logic removed
+      dataSheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        // Skip header row
+        if (rowNumber === 1) return;
 
+        // Check if this is a sample row (skip it)
+        const firstCell = this._getCellValue(row.getCell(2));
+        if (firstCell && firstCell.toLowerCase().includes('sample')) {
+          return;
+        }
 
-        const rowNumber = index + 2; // +2 because: header is row 1, sample is row 2, data starts row 3
-        const result = this._validateRow(row, event.form_schema, rowNumber);
+        totalRows++;
+        const rowData = this._extractRowData(row, headers, headerMap);
+        const result = this._validateRow(rowData, event.form_schema, rowNumber);
 
         if (result.errors.length > 0) {
           errors.push(...result.errors);
@@ -97,49 +110,103 @@ class CsvParserService {
         data: validatedData,
         errors: errors,
         summary: {
-          total: parsed.data.length - 1, // Exclude sample row
+          total: totalRows,
           valid: validatedData.length,
           invalid: errors.length
         }
       };
-
     } catch (error) {
-      logger.error('CSV parsing error:', error);
+      logger.error('Excel parsing error:', error);
       return {
         success: false,
         data: [],
         errors: [{
           row: 0,
           field: 'File',
-          message: `Failed to parse CSV file: ${error.message}`
+          message: `Failed to parse Excel file: ${error.message}`
         }],
-        summary: {
-          total: 0,
-          valid: 0,
-          invalid: 1
-        }
+        summary: { total: 0, valid: 0, invalid: 1 }
       };
     }
   }
 
   /**
-   * Validate CSV headers against form schema
+   * Get cell value handling different Excel cell types
+   * @private
+   */
+  _getCellValue(cell) {
+    if (!cell || cell.value === null || cell.value === undefined) {
+      return '';
+    }
+
+    const value = cell.value;
+
+    // Handle rich text
+    if (typeof value === 'object' && value.richText) {
+      return value.richText.map(r => r.text).join('');
+    }
+
+    // Handle formula results
+    if (typeof value === 'object' && value.result !== undefined) {
+      return String(value.result);
+    }
+
+    // Handle hyperlinks (ExcelJS returns { text, hyperlink } or { hyperlink })
+    if (typeof value === 'object' && value.hyperlink) {
+      return value.text || value.hyperlink || '';
+    }
+
+    // Handle other objects with text property
+    if (typeof value === 'object' && value.text) {
+      return String(value.text);
+    }
+
+    // Handle dates
+    if (value instanceof Date) {
+      const day = String(value.getDate()).padStart(2, '0');
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const year = value.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    // Handle any remaining objects - try to extract meaningful value
+    if (typeof value === 'object') {
+      // Last resort: try JSON or return empty
+      logger.warn('Unknown cell object type:', value);
+      return '';
+    }
+
+    return String(value);
+  }
+
+  /**
+   * Extract row data into object
+   * @private
+   */
+  _extractRowData(row, headers, headerMap) {
+    const data = {};
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const header = headers[colNumber];
+      if (header) {
+        data[header.toLowerCase()] = this._getCellValue(cell);
+      }
+    });
+    return data;
+  }
+
+  /**
+   * Validate headers against form schema
    * @private
    */
   _validateHeaders(headers, formSchema) {
     const errors = [];
+    const normalizedHeaders = headers.filter(h => h).map(h => h.toLowerCase());
 
     // Required default headers
-    const requiredHeaders = ['S.No', 'Student Name', 'Grade'];
-    const normalizedHeaders = headers.map(h => h.toLowerCase());
+    const requiredHeaders = ['s.no', 'student name', 'grade'];
 
-    // Check for missing required headers
     requiredHeaders.forEach(required => {
-      const found = normalizedHeaders.some(h =>
-        h === required.toLowerCase() || h === required.toLowerCase().replace(/\*$/, '')
-      );
-
-      if (!found) {
+      if (!normalizedHeaders.includes(required)) {
         errors.push({
           row: 1,
           field: 'Headers',
@@ -155,7 +222,6 @@ class CsvParserService {
           const found = normalizedHeaders.some(h =>
             h === field.field_label.toLowerCase() || h === field.field_id.toLowerCase()
           );
-
           if (!found) {
             errors.push({
               row: 1,
@@ -174,13 +240,13 @@ class CsvParserService {
    * Validate a single row
    * @private
    */
-  _validateRow(row, formSchema, rowNumber) {
+  _validateRow(rowData, formSchema, rowNumber) {
     const errors = [];
 
-    // Get values (case-insensitive header matching)
-    const studentName = this._getRowValue(row, ['Student Name', 'student name', 'Student Name*']);
-    const grade = this._getRowValue(row, ['Grade', 'grade', 'Grade*']);
-    const section = this._getRowValue(row, ['Section', 'section']);
+    // Get values using multiple possible header names
+    const studentName = this._getFieldValue(rowData, ['student name']);
+    const grade = this._getFieldValue(rowData, ['grade']);
+    const section = this._getFieldValue(rowData, ['section']);
 
     // Skip completely empty rows
     if (!studentName && !grade && !section) {
@@ -215,9 +281,11 @@ class CsvParserService {
 
     if (formSchema && formSchema.length > 0) {
       formSchema.forEach(field => {
-        const value = this._getRowValue(row, [field.field_label, field.field_id, `${field.field_label}*`]);
+        const value = this._getFieldValue(rowData, [
+          field.field_label.toLowerCase(),
+          field.field_id.toLowerCase()
+        ]);
 
-        // Validate field
         const validation = this._validateField(field, value, rowNumber);
 
         if (validation.errors.length > 0) {
@@ -228,12 +296,10 @@ class CsvParserService {
       });
     }
 
-    // If validation failed, return errors
     if (errors.length > 0) {
       return { data: null, errors };
     }
 
-    // Return validated data
     return {
       data: {
         student_name: studentName.trim(),
@@ -246,25 +312,15 @@ class CsvParserService {
   }
 
   /**
-   * Get row value by multiple possible header names (case-insensitive)
+   * Get field value from row data using multiple possible keys
    * @private
    */
-  _getRowValue(row, possibleHeaders) {
-    for (const header of possibleHeaders) {
-      if (row[header] !== undefined && row[header] !== null) {
-        return row[header];
+  _getFieldValue(rowData, possibleKeys) {
+    for (const key of possibleKeys) {
+      if (rowData[key] !== undefined && rowData[key] !== null && rowData[key] !== '') {
+        return rowData[key];
       }
     }
-
-    // Try case-insensitive match
-    const rowKeys = Object.keys(row);
-    for (const header of possibleHeaders) {
-      const found = rowKeys.find(key => key.toLowerCase() === header.toLowerCase());
-      if (found && row[found] !== undefined && row[found] !== null) {
-        return row[found];
-      }
-    }
-
     return '';
   }
 
@@ -337,7 +393,7 @@ class CsvParserService {
           errors.push({
             row: rowNumber,
             field: field.field_label,
-            message: `Invalid date format. Use DD/MM/YYYY or DD-MM-YYYY: ${trimmedValue}`
+            message: `Invalid date format. Use DD/MM/YYYY: ${trimmedValue}`
           });
         }
         break;
@@ -355,18 +411,23 @@ class CsvParserService {
         break;
 
       case FIELD_TYPES.SELECT:
-        if (field.field_options && !field.field_options.includes(trimmedValue)) {
-          errors.push({
-            row: rowNumber,
-            field: field.field_label,
-            message: `Invalid option. Must be one of: ${field.field_options.join(', ')}`
-          });
+        if (field.field_options) {
+          // Case-insensitive comparison with trimmed values
+          const normalizedOptions = field.field_options.map(o => o.trim().toLowerCase());
+          const normalizedValue = trimmedValue.toLowerCase();
+          if (!normalizedOptions.includes(normalizedValue)) {
+            errors.push({
+              row: rowNumber,
+              field: field.field_label,
+              message: `Invalid option. Must be one of: ${field.field_options.join(', ')}`
+            });
+          }
         }
         break;
 
       case FIELD_TYPES.CHECKBOX:
-        const normalizedValue = trimmedValue.toLowerCase();
-        if (!['yes', 'no', 'true', 'false', '1', '0'].includes(normalizedValue)) {
+        const checkboxValue = trimmedValue.toLowerCase();
+        if (!['yes', 'no', 'true', 'false', '1', '0'].includes(checkboxValue)) {
           errors.push({
             row: rowNumber,
             field: field.field_label,
@@ -378,14 +439,16 @@ class CsvParserService {
       case FIELD_TYPES.TEXT:
       case FIELD_TYPES.TEXTAREA:
         if (field.validation_rules) {
-          if (field.validation_rules.minLength != null && trimmedValue.length < field.validation_rules.minLength) {
+          if (field.validation_rules.minLength != null &&
+              trimmedValue.length < field.validation_rules.minLength) {
             errors.push({
               row: rowNumber,
               field: field.field_label,
               message: `Minimum length is ${field.validation_rules.minLength} characters`
             });
           }
-          if (field.validation_rules.maxLength != null && trimmedValue.length > field.validation_rules.maxLength) {
+          if (field.validation_rules.maxLength != null &&
+              trimmedValue.length > field.validation_rules.maxLength) {
             errors.push({
               row: rowNumber,
               field: field.field_label,
@@ -448,7 +511,6 @@ class CsvParserService {
     if (day < 1 || day > 31) return false;
     if (year < 1900 || year > 2100) return false;
 
-    // Check for valid date
     const date = new Date(year, month - 1, day);
     return date.getFullYear() === year &&
       date.getMonth() === month - 1 &&
@@ -466,6 +528,41 @@ class CsvParserService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Generate error report as Excel buffer
+   * @param {Array} errors - Array of error objects
+   * @returns {Promise<Buffer>} - Excel buffer with errors
+   */
+  async generateErrorReport(errors) {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Errors');
+
+    sheet.columns = [
+      { header: 'Row', key: 'row', width: 10 },
+      { header: 'Field', key: 'field', width: 20 },
+      { header: 'Error', key: 'message', width: 50 }
+    ];
+
+    // Style header
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFF6B6B' }
+    };
+
+    errors.forEach(err => {
+      sheet.addRow({
+        row: err.row,
+        field: err.field,
+        message: err.message
+      });
+    });
+
+    return workbook.xlsx.writeBuffer();
   }
 
   /**
@@ -497,46 +594,6 @@ class CsvParserService {
 
     return lines.join('\n');
   }
-
-  /**
-   * Generate CSV error report
-   * @param {Array} errors - Array of error objects
-   * @returns {string} - CSV string with errors
-   */
-  generateErrorReport(errors) {
-    if (!errors || errors.length === 0) {
-      return 'Row,Field,Error\n';
-    }
-
-    const lines = ['Row,Field,Error'];
-    errors.forEach(err => {
-      const escapedMessage = this._escapeCSV(err.message);
-      lines.push(`${err.row},${err.field},${escapedMessage}`);
-    });
-
-    return lines.join('\n');
-  }
-
-  /**
-   * Escape CSV value
-   * @private
-   */
-  _escapeCSV(value) {
-    if (value === null || value === undefined) {
-      return '';
-    }
-
-    const stringValue = String(value);
-    const needsQuoting = /[",\n\r]/.test(stringValue);
-
-    if (needsQuoting) {
-      const escapedValue = stringValue.replace(/"/g, '""');
-      return `"${escapedValue}"`;
-    }
-
-    return stringValue;
-  }
 }
 
-// Export singleton instance
-module.exports = new CsvParserService();
+module.exports = new ExcelParserService();

@@ -260,7 +260,9 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
         ...field,
         field_options:
           field.field_type === 'select' && field.field_options
-            ? field.field_options.split(',').map((opt) => opt.trim())
+            ? (Array.isArray(field.field_options)
+                ? field.field_options
+                : field.field_options.split(',').map((opt) => opt.trim()))
             : undefined,
       }));
 

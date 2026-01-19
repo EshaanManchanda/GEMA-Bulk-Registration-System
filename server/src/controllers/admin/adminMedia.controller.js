@@ -3,6 +3,7 @@ const storageService = require('../../services/storage.service');
 const asyncHandler = require('../../middleware/async.middleware');
 const AppError = require('../../utils/appError');
 const path = require('path');
+const mongoose = require('mongoose');
 
 /**
  * @desc    Upload media files
@@ -37,14 +38,18 @@ exports.uploadMedia = asyncHandler(async (req, res, next) => {
       }
     }
 
-    // Create media record
+    // Generate ObjectId first to construct file_url before creating record
+    const mediaId = new mongoose.Types.ObjectId();
     const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const file_url = `${baseUrl}/api/v1/media/serve/${mediaId}`;
 
+    // Create media record with pre-generated _id and file_url
     const media = await Media.create({
+      _id: mediaId,
       filename: path.basename(uploadResult.secure_url),
       original_filename: file.originalname,
       storage_url: uploadResult.secure_url,
-      file_url: '',
+      file_url,
       public_id: uploadResult.public_id,
       file_type: file.mimetype.startsWith('image/') ? 'image' : 'other',
       mime_type: file.mimetype,
@@ -55,10 +60,6 @@ exports.uploadMedia = asyncHandler(async (req, res, next) => {
       storage_provider: process.env.MEDIA_PROVIDER || 'cloudinary',
       uploaded_by: req.user.id
     });
-
-    // Set file_url to proxy endpoint (hides storage implementation)
-    media.file_url = `${baseUrl}/api/v1/media/serve/${media._id}`;
-    await media.save();
 
     return media;
   });

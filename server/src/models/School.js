@@ -62,8 +62,13 @@ const schoolSchema = new mongoose.Schema({
       type: String,
       required: [true, 'Contact phone is required'],
       trim: true,
-      minlength: [10, 'Phone number must be at least 10 digits'],
+      minlength: [7, 'Phone number must be at least 7 digits'],
       maxlength: [15, 'Phone number cannot exceed 15 digits']
+    },
+    phone_country_code: {
+      type: String,
+      trim: true,
+      default: '+91'
     }
   },
   address: {

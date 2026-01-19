@@ -6,7 +6,7 @@
 module.exports = {
   apps: [
     {
-      name: 'gema-backend',
+      name: 'bulk-backend',
       script: './server.js',
 
       // Instances

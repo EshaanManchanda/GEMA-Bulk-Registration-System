@@ -107,7 +107,7 @@ export const useValidateBatch = () => {
   return useMutation({
     mutationFn: async ({ eventSlug, file }) => {
       const formData = new FormData();
-      formData.append('csv_file', file);
+      formData.append('file', file);
       formData.append('eventSlug', eventSlug);
 
       const response = await apiClient.post(
@@ -132,7 +132,7 @@ export const useUploadBatch = () => {
   return useMutation({
     mutationFn: async ({ eventSlug, file, validationId }) => {
       const formData = new FormData();
-      formData.append('csv_file', file);
+      formData.append('file', file);
       formData.append('eventSlug', eventSlug);
       if (validationId) {
         formData.append('validationId', validationId);
@@ -171,11 +171,19 @@ export const useDownloadTemplate = () => {
           throw new Error('Received empty file from server');
         }
 
+        // Extract filename from Content-Disposition header or use default
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = `${eventSlug}-template.xlsx`;
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="(.+)"/);
+          if (match) filename = match[1];
+        }
+
         // Create download link
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `${eventSlug}-template.csv`);
+        link.setAttribute('download', filename);
         document.body.appendChild(link);
         link.click();
         link.remove();

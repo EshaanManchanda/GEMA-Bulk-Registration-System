@@ -123,10 +123,9 @@ class CsvGeneratorService {
         return 'Yes';
 
       case 'url':
-        return 'https://example.com';
-
       case 'file':
-        return 'filename.pdf';
+        // FILE type now accepts public URLs instead of file upload
+        return 'https://drive.google.com/file/your-file-link';
 
       default:
         return 'Sample Value';

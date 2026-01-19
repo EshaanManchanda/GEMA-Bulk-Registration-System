@@ -242,21 +242,23 @@ const UploadBatch = () => {
           {currentStep === 1 && (
             <Card>
               <Card.Header>
-                <Card.Title>Step 2: Upload & Validate CSV File</Card.Title>
-                <Card.Description>Upload your filled CSV file for validation</Card.Description>
+                <Card.Title>Step 2: Upload & Validate File</Card.Title>
+                <Card.Description>Upload your filled Excel or CSV file for validation</Card.Description>
               </Card.Header>
               <Card.Body>
                 <div className="space-y-4">
                   <FileUpload
                     onFileSelect={handleFileUpload}
                     accept={{
+                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                      'application/vnd.ms-excel': ['.xls', '.xlsx'],
                       'text/csv': ['.csv'],
                       'text/plain': ['.csv'],
                       'application/csv': ['.csv'],
                     }}
-                    maxSize={FILE_SIZE_LIMITS.CSV}
-                    label="Upload CSV File"
-                    helperText="Supported formats: .csv (max 5MB)"
+                    maxSize={FILE_SIZE_LIMITS.SPREADSHEET}
+                    label="Upload Excel or CSV File"
+                    helperText="Supported formats: .xlsx, .csv (max 10MB)"
                   />
 
                   {validationErrors.length > 0 && (
