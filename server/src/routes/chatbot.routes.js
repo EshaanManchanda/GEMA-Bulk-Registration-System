@@ -10,7 +10,7 @@ router.post('/message', optionalAuth, chatController.sendMessage);
 router.post('/detect-intent', optionalAuth, chatController.detectIntentTest);
 
 // Authenticated routes
-router.get('/history/:sessionId', requireAuth, chatController.getHistory);
+router.get('/history/:sessionId', optionalAuth, chatController.getHistory);
 router.post('/feedback', requireAuth, analyticsController.submitFeedback);
 router.get('/export/:sessionId', requireAuth, analyticsController.exportConversation);
 

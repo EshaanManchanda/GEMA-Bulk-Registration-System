@@ -12,6 +12,14 @@ const STRIPE_PUBLISHABLE_KEY = isDevelopment
   ? import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY
   : import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
+console.log('Stripe Debug:', {
+  mode: import.meta.env.MODE,
+  isDevelopment,
+  hasTestKey: !!import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY,
+  hasProdKey: !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+  selectedKey: STRIPE_PUBLISHABLE_KEY ? 'Present' : 'Missing'
+});
+
 const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 /**

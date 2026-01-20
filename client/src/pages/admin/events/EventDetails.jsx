@@ -10,7 +10,7 @@ import {
 } from '../../../hooks/useAdmin';
 import { Card, Badge, Tabs, Spinner, Button, Modal } from '../../../components/ui';
 import { formatDate, formatCurrency } from '../../../utils/helpers';
-import { BADGE_CLASSES, EVENT_STATUS } from '../../../utils/constants';
+import { BADGE_CLASSES, EVENT_STATUS, EVENT_TYPE_LABELS } from '../../../utils/constants';
 import { showError, showSuccess } from '../../../components/common/Toast';
 import EventAnalytics from './EventAnalytics';
 
@@ -86,6 +86,28 @@ const EventDetails = () => {
       </AdminLayout>
     );
   }
+
+  // Helper to format event dates with fallback for new schedule structure
+  const formatEventDates = (event) => {
+    if (!event) return 'N/A';
+    // New schedule structure
+    if (event.schedule?.event_date) {
+      return formatDate(event.schedule.event_date);
+    }
+    if (event.schedule?.date_range?.start) {
+      return `${formatDate(event.schedule.date_range.start)} - ${formatDate(event.schedule.date_range.end)}`;
+    }
+    if (event.schedule?.event_dates?.length > 0) {
+      return event.schedule.event_dates
+        .map(d => `${d.label ? d.label + ': ' : ''}${formatDate(d.date)}`)
+        .join(', ');
+    }
+    // Legacy fallback
+    if (event.event_start_date && event.event_end_date) {
+      return `${formatDate(event.event_start_date)} - ${formatDate(event.event_end_date)}`;
+    }
+    return formatDate(event.event_start_date);
+  };
 
   const tabs = [
     {
@@ -284,15 +306,22 @@ const EventDetails = () => {
                       <Badge variant="info">{event?.category}</Badge>
                     </div>
                     <div>
+                      <p className="text-sm text-gray-600 mb-1">Event Type</p>
+                      <Badge variant="secondary">
+                        {EVENT_TYPE_LABELS[event?.event_type]?.icon || ''}{' '}
+                        {EVENT_TYPE_LABELS[event?.event_type]?.label || event?.event_type || 'N/A'}
+                      </Badge>
+                    </div>
+                    <div>
                       <p className="text-sm text-gray-600 mb-1">Status</p>
                       <Badge variant={BADGE_CLASSES[event?.status]?.variant || 'info'}>
                         {event?.status}
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 mb-1">Event Start Date</p>
+                      <p className="text-sm text-gray-600 mb-1">Event Dates</p>
                       <p className="text-lg font-medium text-gray-900">
-                        {formatDate(event?.event_start_date)}
+                        {formatEventDates(event)}
                       </p>
                     </div>
                     <div>
@@ -461,9 +490,46 @@ const EventDetails = () => {
                       </p>
                       <p className="text-sm text-gray-600">Total Revenue</p>
                     </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {event?.view_count || 0}
+                      </p>
+                      <p className="text-sm text-gray-600">Page Views</p>
+                    </div>
                   </div>
                 </Card.Body>
               </Card>
+
+              {/* Metrics */}
+              {event?.metrics && (
+                <Card>
+                  <Card.Header>
+                    <Card.Title>Engagement Metrics</Card.Title>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {event.metrics.wishlist_count || 0}
+                        </p>
+                        <p className="text-sm text-gray-600">Wishlist Saves</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {event.metrics.share_count || 0}
+                        </p>
+                        <p className="text-sm text-gray-600">Shares</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-green-600">
+                          {(event.metrics.conversion_rate || 0).toFixed(1)}%
+                        </p>
+                        <p className="text-sm text-gray-600">Conversion Rate</p>
+                      </div>
+                    </div>
+                  </Card.Body>
+                </Card>
+              )}
 
               {/* Quick Actions */}
               <Card>

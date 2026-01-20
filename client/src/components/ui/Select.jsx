@@ -59,7 +59,7 @@ const Select = forwardRef(
           {/* Options */}
           {options.map((option, index) => (
             <option
-              key={option.value || index}
+              key={option.key || option.value || index}
               value={option.value}
               disabled={option.disabled}
             >

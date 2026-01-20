@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { EVENT_STATUS, FIELD_TYPES } = require('../utils/constants');
+const { EVENT_STATUS, FIELD_TYPES, EVENT_TYPES, GRADE_LEVELS } = require('../utils/constants');
 
 /**
  * Form Field Schema
@@ -212,6 +212,34 @@ const eventSchema = new mongoose.Schema({
     },
     default: 'olympiad'
   },
+  event_type: {
+    type: String,
+    enum: {
+      values: Object.values(EVENT_TYPES),
+      message: '{VALUE} is not a valid event type'
+    },
+    default: 'olympiad',
+    index: true
+  },
+  schedule: {
+    registration_start: { type: Date },
+    registration_deadline: { type: Date },
+    event_date: { type: Date },
+    event_dates: [{
+      label: { type: String, trim: true },
+      date: { type: Date }
+    }],
+    date_range: {
+      start: { type: Date },
+      end: { type: Date }
+    },
+    result_date: { type: Date }
+  },
+  metrics: {
+    wishlist_count: { type: Number, default: 0 },
+    share_count: { type: Number, default: 0 },
+    conversion_rate: { type: Number, default: 0 }
+  },
   grade_levels: {
     type: [String],
     default: []
@@ -343,11 +371,16 @@ eventSchema.index({ is_featured: 1, status: 1 });
 
 /**
  * Check if registration is currently open
+ * Uses fallback logic for backward compatibility with legacy fields
  */
 eventSchema.virtual('is_registration_open').get(function () {
   const now = new Date();
-  const registrationStarted = !this.registration_start_date || now >= this.registration_start_date;
-  const registrationNotEnded = !this.registration_deadline || now <= this.registration_deadline;
+  // Use new schedule fields with fallback to legacy fields
+  const regStart = this.schedule?.registration_start || this.registration_start_date;
+  const regDeadline = this.schedule?.registration_deadline || this.registration_deadline;
+
+  const registrationStarted = !regStart || now >= regStart;
+  const registrationNotEnded = !regDeadline || now <= regDeadline;
   const eventActive = this.status === EVENT_STATUS.ACTIVE;
 
   return eventActive && registrationStarted && registrationNotEnded;
@@ -422,9 +455,15 @@ eventSchema.pre('save', function (next) {
   next();
 });
 
-// Pre-save: Ensure discount rules are sorted by min_students
+// Pre-save: Ensure discount rules are sorted and have unique min_students
 eventSchema.pre('save', function (next) {
   if (this.isModified('bulk_discount_rules') && this.bulk_discount_rules.length > 0) {
+    // Validate unique min_students values
+    const minStudentsValues = this.bulk_discount_rules.map(r => r.min_students);
+    if (new Set(minStudentsValues).size !== minStudentsValues.length) {
+      return next(new Error('Discount rules must have unique minimum student values'));
+    }
+    // Sort by min_students ascending
     this.bulk_discount_rules.sort((a, b) => a.min_students - b.min_students);
   }
   next();
@@ -453,10 +492,10 @@ eventSchema.methods.calculateDiscount = function (studentCount) {
     return { percentage: 0, min_students: 0 };
   }
 
-  // Find applicable discount rule (highest applicable)
+  // Find applicable discount rule - sort by min_students descending to get highest applicable tier
   const applicableRule = this.bulk_discount_rules
     .filter(rule => studentCount >= rule.min_students)
-    .sort((a, b) => b.discount_percentage - a.discount_percentage)[0];
+    .sort((a, b) => b.min_students - a.min_students)[0];
 
   if (!applicableRule) {
     return { percentage: 0, min_students: 0 };
@@ -515,6 +554,35 @@ eventSchema.methods.incrementViewCount = async function () {
 eventSchema.methods.incrementRegistrationCount = async function () {
   this.registration_count += 1;
   await this.save();
+};
+
+/**
+ * Increment share count (metrics)
+ */
+eventSchema.methods.incrementShareCount = async function () {
+  if (!this.metrics) this.metrics = {};
+  this.metrics.share_count = (this.metrics.share_count || 0) + 1;
+  await this.save();
+};
+
+/**
+ * Increment wishlist count (metrics)
+ */
+eventSchema.methods.incrementWishlistCount = async function () {
+  if (!this.metrics) this.metrics = {};
+  this.metrics.wishlist_count = (this.metrics.wishlist_count || 0) + 1;
+  await this.save();
+};
+
+/**
+ * Update conversion rate (metrics)
+ */
+eventSchema.methods.updateConversionRate = async function () {
+  if (this.view_count > 0) {
+    if (!this.metrics) this.metrics = {};
+    this.metrics.conversion_rate = (this.registration_count / this.view_count) * 100;
+    await this.save();
+  }
 };
 
 // ===============================================

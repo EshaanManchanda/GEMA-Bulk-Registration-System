@@ -12,6 +12,7 @@ import DiscountRulesEditor from '../../../components/admin/events/DiscountRulesE
 import MediaPicker from '../../../components/admin/MediaPicker';
 import { showError, showSuccess } from '../../../components/common/Toast';
 import { formatCurrency, formatDate } from '../../../utils/helpers';
+import { EVENT_TYPE_LABELS, GRADE_LEVELS } from '../../../utils/constants';
 
 /**
  * Create Event Page
@@ -49,17 +50,23 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
       .string()
       .oneOf(['olympiad', 'championship', 'competition', 'workshop', 'other'])
       .required('Category is required'),
+    event_type: yup
+      .string()
+      .oneOf(['exam', 'olympiad', 'championship', 'competition', 'workshop', 'submission_only', 'other'])
+      .required('Event type is required'),
     grade_levels: yup.array().min(1, 'Select at least one grade').required(),
     short_description: yup.string().max(500, 'Max 500 characters'),
     description: yup.string().max(2000, 'Max 2000 characters').required('Description is required'),
 
     // Step 2: Dates & Pricing - Accept strings from HTML date inputs
+    schedule_type: yup.string().oneOf(['single_date', 'date_range', 'multiple_dates']).default('date_range'),
     event_start_date: yup.string().required('Start date is required'),
     event_end_date: yup
       .string()
       .required('End date is required')
       .test('is-greater', 'End date must be after start date', function (value) {
-        const { event_start_date } = this.parent;
+        const { event_start_date, schedule_type } = this.parent;
+        if (schedule_type === 'single_date') return true;
         if (!value || !event_start_date) return true;
         return new Date(value) > new Date(event_start_date);
       }),
@@ -80,6 +87,12 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
         if (!value || !event_end_date) return true;
         return new Date(value) >= new Date(event_end_date);
       }),
+    event_dates: yup.array().of(
+      yup.object({
+        label: yup.string(),
+        date: yup.string()
+      })
+    ).default([]),
     base_fee_inr: yup.number().transform((value, orig) => orig === '' ? undefined : value).min(0, 'Must be positive').required('INR fee is required'),
     base_fee_usd: yup.number().transform((value, orig) => orig === '' ? undefined : value).min(0, 'Must be positive').required('USD fee is required'),
     max_participants: yup.number().transform((value, orig) => orig === '' ? null : value).min(1, 'Must be at least 1').nullable().optional(),
@@ -100,11 +113,14 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
       title: '',
       event_slug: '',
       category: 'olympiad',
+      event_type: 'olympiad',
       grade_levels: [],
       short_description: '',
       description: '',
+      schedule_type: 'date_range',
       event_start_date: '',
       event_end_date: '',
+      event_dates: [],
       registration_start_date: '',
       registration_deadline: '',
       result_announced_date: '',
@@ -179,6 +195,7 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
         'title',
         'event_slug',
         'category',
+        'event_type',
         'grade_levels',
         'short_description',
         'description',
@@ -227,18 +244,36 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
 
   const uploadBannerToCloudinary = async (file) => {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_PRESET || 'gema_events');
+    formData.append('files', file);
+    formData.append('folder', 'events');
+    formData.append('tags', 'event-banner');
 
     try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo'}/image/upload`,
-        { method: 'POST', body: formData }
-      );
+      // Use our backend media upload endpoint instead of direct Cloudinary upload
+      // This ensures consistent error handling and database tracking
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/media/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
       const data = await response.json();
-      return data.secure_url;
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Banner upload failed');
+      }
+
+      // Backend returns array of uploaded files
+      if (data.data && data.data.media && data.data.media.length > 0) {
+        return data.data.media[0].file_url;
+      } else {
+        throw new Error('No file URL in response');
+      }
     } catch (error) {
-      throw new Error('Banner upload failed');
+      console.error('Banner upload error:', error);
+      throw new Error(error.message || 'Banner upload failed');
     }
   };
 
@@ -261,15 +296,42 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
         field_options:
           field.field_type === 'select' && field.field_options
             ? (Array.isArray(field.field_options)
-                ? field.field_options
-                : field.field_options.split(',').map((opt) => opt.trim()))
+              ? field.field_options
+              : field.field_options.split(',').map((opt) => opt.trim()))
             : undefined,
       }));
+
+      // Build schedule object based on schedule_type
+      const schedule = {
+        registration_start: data.registration_start_date || null,
+        registration_deadline: data.registration_deadline,
+        result_date: data.result_announced_date || null
+      };
+
+      if (data.schedule_type === 'single_date') {
+        schedule.event_date = data.event_start_date;
+      } else if (data.schedule_type === 'date_range') {
+        schedule.date_range = {
+          start: data.event_start_date,
+          end: data.event_end_date
+        };
+      } else if (data.schedule_type === 'multiple_dates') {
+        schedule.event_dates = (data.event_dates || []).filter(d => d.date);
+        // Set start/end from first/last dates for backward compatibility
+        if (schedule.event_dates.length > 0) {
+          const sortedDates = [...schedule.event_dates].sort((a, b) =>
+            new Date(a.date) - new Date(b.date)
+          );
+          data.event_start_date = sortedDates[0].date;
+          data.event_end_date = sortedDates[sortedDates.length - 1].date;
+        }
+      }
 
       payload = {
         ...data,
         form_schema: processedFormSchema,
         banner_url: bannerUrlToUse,
+        schedule,
       };
 
       if (mode === 'edit' && eventId) {
@@ -296,6 +358,15 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
     }
   };
 
+  // Event type options for dropdown
+  const EVENT_TYPE_OPTIONS = Object.entries(EVENT_TYPE_LABELS).map(([value, info]) => ({
+    value,
+    label: info.label,
+    icon: info.icon,
+    description: info.description
+  }));
+
+  // Legacy categories (kept for backward compatibility)
   const CATEGORIES = [
     { value: 'olympiad', label: 'Olympiad', icon: '🏆' },
     { value: 'championship', label: 'Championship', icon: '🥇' },
@@ -303,8 +374,6 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
     { value: 'workshop', label: 'Workshop', icon: '🎓' },
     { value: 'other', label: 'Other', icon: '📌' },
   ];
-
-  const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
   const handleFormSubmit = (e) => {
     console.log('Form submit triggered');
@@ -397,7 +466,7 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                     )}
                   </div>
 
-                  {/* Category */}
+                  {/* Category (Legacy) */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Category <span className="text-red-500">*</span>
@@ -414,27 +483,55 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                     </select>
                   </div>
 
+                  {/* Event Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Event Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      {...methods.register('event_type')}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      {EVENT_TYPE_OPTIONS.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.icon} {type.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {EVENT_TYPE_LABELS[watch('event_type')]?.description || 'Select event type'}
+                    </p>
+                    {errors.event_type && (
+                      <p className="text-sm text-red-600 mt-1">{errors.event_type.message}</p>
+                    )}
+                  </div>
+
                   {/* Grade Levels */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Grade Levels <span className="text-red-500">*</span>
                     </label>
-                    <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
-                      {GRADE_OPTIONS.map((grade) => (
+                    <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+                      {GRADE_LEVELS.map((grade) => (
                         <label
-                          key={grade}
+                          key={grade.value}
                           className="flex items-center justify-center p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-purple-50 has-[:checked]:bg-purple-100 has-[:checked]:border-purple-500"
                         >
                           <input
                             type="checkbox"
-                            value={grade}
+                            value={grade.value}
                             {...methods.register('grade_levels')}
                             className="sr-only"
                           />
-                          <span className="text-sm font-medium">{grade}</span>
+                          <span className="text-xs font-medium text-center">
+                            {grade.value === 'below_1' ? '<1' : grade.value}
+                          </span>
                         </label>
                       ))}
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select applicable grade levels (including "Below Grade 1" for pre-school)
+                    </p>
                     {errors.grade_levels && (
                       <p className="text-sm text-red-600 mt-1">{errors.grade_levels.message}</p>
                     )}
@@ -484,11 +581,52 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold text-gray-900">Dates & Pricing</h2>
 
-                  {/* Event Dates */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Schedule Type Selector */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Schedule Type
+                    </label>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="single_date"
+                          {...methods.register('schedule_type')}
+                          className="w-4 h-4 text-purple-600"
+                        />
+                        <span className="text-sm">Single Date</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="date_range"
+                          {...methods.register('schedule_type')}
+                          className="w-4 h-4 text-purple-600"
+                        />
+                        <span className="text-sm">Date Range</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="multiple_dates"
+                          {...methods.register('schedule_type')}
+                          className="w-4 h-4 text-purple-600"
+                        />
+                        <span className="text-sm">Multiple Dates</span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {watch('schedule_type') === 'single_date' && 'Event occurs on a single day'}
+                      {watch('schedule_type') === 'date_range' && 'Event spans multiple consecutive days'}
+                      {watch('schedule_type') === 'multiple_dates' && 'Event occurs on specific non-consecutive dates'}
+                    </p>
+                  </div>
+
+                  {/* Event Dates - Conditional based on schedule_type */}
+                  {watch('schedule_type') === 'single_date' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Event Start Date <span className="text-red-500">*</span>
+                        Event Date <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="date"
@@ -501,21 +639,106 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                         </p>
                       )}
                     </div>
+                  )}
 
+                  {watch('schedule_type') === 'date_range' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Event Start Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          {...methods.register('event_start_date')}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        {errors.event_start_date && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {errors.event_start_date.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Event End Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          {...methods.register('event_end_date')}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        {errors.event_end_date && (
+                          <p className="text-sm text-red-600 mt-1">{errors.event_end_date.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {watch('schedule_type') === 'multiple_dates' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Event End Date <span className="text-red-500">*</span>
+                        Event Dates
                       </label>
-                      <input
-                        type="date"
-                        {...methods.register('event_end_date')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      {errors.event_end_date && (
-                        <p className="text-sm text-red-600 mt-1">{errors.event_end_date.message}</p>
-                      )}
+                      <div className="space-y-3">
+                        {(watch('event_dates') || []).map((eventDate, index) => (
+                          <div key={index} className="flex gap-3 items-center">
+                            <input
+                              type="text"
+                              placeholder="Label (e.g., Round 1)"
+                              value={eventDate.label || ''}
+                              onChange={(e) => {
+                                const dates = [...(watch('event_dates') || [])];
+                                dates[index] = { ...dates[index], label: e.target.value };
+                                setValue('event_dates', dates);
+                              }}
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            <input
+                              type="date"
+                              value={eventDate.date || ''}
+                              onChange={(e) => {
+                                const dates = [...(watch('event_dates') || [])];
+                                dates[index] = { ...dates[index], date: e.target.value };
+                                setValue('event_dates', dates);
+                              }}
+                              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const dates = [...(watch('event_dates') || [])];
+                                dates.splice(index, 1);
+                                setValue('event_dates', dates);
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const dates = [...(watch('event_dates') || []), { label: '', date: '' }];
+                            setValue('event_dates', dates);
+                          }}
+                        >
+                          + Add Date
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Add multiple event dates with optional labels
+                      </p>
+                      {/* Hidden fields to satisfy validation - use first date as start, last as end */}
+                      <input type="hidden" {...methods.register('event_start_date')} />
+                      <input type="hidden" {...methods.register('event_end_date')} />
                     </div>
-                  </div>
+                  )}
 
                   {/* Registration Dates */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

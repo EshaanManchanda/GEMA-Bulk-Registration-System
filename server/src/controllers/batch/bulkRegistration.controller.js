@@ -44,12 +44,14 @@ exports.downloadTemplate = asyncHandler(async (req, res, next) => {
     return next(new AppError('This event is not currently accepting registrations', 400));
   }
 
-  // Check if registration is still open
+  // Check if registration is still open (with fallback for new schedule fields)
   const now = new Date();
-  if (event.registration_start_date && now < event.registration_start_date) {
+  const regStart = event.schedule?.registration_start || event.registration_start_date;
+  const regDeadline = event.schedule?.registration_deadline || event.registration_deadline;
+  if (regStart && now < regStart) {
     return next(new AppError('Registration has not yet started', 400));
   }
-  if (event.registration_deadline && now > event.registration_deadline) {
+  if (regDeadline && now > regDeadline) {
     return next(new AppError('Registration period has ended', 400));
   }
 
@@ -174,11 +176,14 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
     return next(new AppError('This event is not currently accepting registrations', 400));
   }
 
+  // Date validation with fallback for new schedule fields
   const now = new Date();
-  if (event.registration_start_date && now < event.registration_start_date) {
+  const regStart = event.schedule?.registration_start || event.registration_start_date;
+  const regDeadline = event.schedule?.registration_deadline || event.registration_deadline;
+  if (regStart && now < regStart) {
     return next(new AppError('Registration has not yet started', 400));
   }
-  if (event.registration_deadline && now > event.registration_deadline) {
+  if (regDeadline && now > regDeadline) {
     return next(new AppError('Registration period has ended', 400));
   }
 

@@ -51,7 +51,7 @@ function sanitizeCellValue(value) {
  */
 class ExcelGeneratorService {
   constructor() {
-    this.MAX_DATA_ROWS = 500; // Reduced to prevent XML bloat
+    this.MAX_DATA_ROWS = 200; // Reduced to prevent XML bloat and repair dialogs
 
     // Style constants
     this.STYLES = {
@@ -97,6 +97,8 @@ class ExcelGeneratorService {
       res.setHeader('Content-Type',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      // Prevent compression middleware from corrupting binary stream
+      res.setHeader('Content-Encoding', 'identity');
 
       await workbook.xlsx.write(res);
       res.end();
@@ -119,7 +121,8 @@ class ExcelGeneratorService {
     workbook.modified = new Date();
 
     // Create hidden master sheet for dropdown options
-    const masterSheet = workbook.addWorksheet('_MASTER', { state: 'veryHidden' });
+    // Note: Use 'hidden' not 'veryHidden' for better compatibility; avoid underscore prefix
+    const masterSheet = workbook.addWorksheet('MASTER', { state: 'hidden' });
 
     // Create main data sheet
     const dataSheet = workbook.addWorksheet('Registrations', {
@@ -298,7 +301,7 @@ class ExcelGeneratorService {
         // Range: row 1 to row N where N = options.length
         const colLetter = this._getColumnLetter(colIndex);
         const endRow = config.options.length;
-        config.masterRange = `=_MASTER!$${colLetter}$1:$${colLetter}$${endRow}`;
+        config.masterRange = `=MASTER!$${colLetter}$1:$${colLetter}$${endRow}`;
 
         colIndex++;
       }
@@ -309,7 +312,7 @@ class ExcelGeneratorService {
         masterSheet.getColumn(colIndex).values = [null, 'Yes', 'No'];
 
         const colLetter = this._getColumnLetter(colIndex);
-        config.masterRange = `=_MASTER!$${colLetter}$1:$${colLetter}$2`;
+        config.masterRange = `=MASTER!$${colLetter}$1:$${colLetter}$2`;
 
         colIndex++;
       }

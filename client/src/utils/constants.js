@@ -24,6 +24,48 @@ export const EVENT_STATUS = {
 };
 
 // ===================================
+// EVENT TYPES
+// ===================================
+export const EVENT_TYPES = {
+  EXAM: 'exam',
+  OLYMPIAD: 'olympiad',
+  CHAMPIONSHIP: 'championship',
+  COMPETITION: 'competition',
+  WORKSHOP: 'workshop',
+  SUBMISSION_ONLY: 'submission_only',
+  OTHER: 'other',
+};
+
+export const EVENT_TYPE_LABELS = {
+  exam: { label: 'Exam', icon: '📝', description: 'Single-date examination' },
+  olympiad: { label: 'Olympiad', icon: '🏆', description: 'Academic competition' },
+  championship: { label: 'Championship', icon: '🥇', description: 'Multi-day event' },
+  competition: { label: 'Competition', icon: '🎯', description: 'General competition' },
+  workshop: { label: 'Workshop', icon: '🎓', description: 'Learning workshop' },
+  submission_only: { label: 'Submission Only', icon: '📤', description: 'No event date' },
+  other: { label: 'Other', icon: '📌', description: 'Other event type' },
+};
+
+// ===================================
+// GRADE LEVELS
+// ===================================
+export const GRADE_LEVELS = [
+  { value: 'below_1', label: 'Below Grade 1' },
+  { value: '1', label: 'Grade 1' },
+  { value: '2', label: 'Grade 2' },
+  { value: '3', label: 'Grade 3' },
+  { value: '4', label: 'Grade 4' },
+  { value: '5', label: 'Grade 5' },
+  { value: '6', label: 'Grade 6' },
+  { value: '7', label: 'Grade 7' },
+  { value: '8', label: 'Grade 8' },
+  { value: '9', label: 'Grade 9' },
+  { value: '10', label: 'Grade 10' },
+  { value: '11', label: 'Grade 11' },
+  { value: '12', label: 'Grade 12' },
+];
+
+// ===================================
 // BATCH STATUS
 // ===================================
 export const BATCH_STATUS = {
@@ -523,6 +565,9 @@ export const COUNTRY_CURRENCY_MAP = COUNTRIES.reduce((acc, country) => {
 export default {
   ROLES,
   EVENT_STATUS,
+  EVENT_TYPES,
+  EVENT_TYPE_LABELS,
+  GRADE_LEVELS,
   BATCH_STATUS,
   PAYMENT_STATUS,
   PAYMENT_MODE,

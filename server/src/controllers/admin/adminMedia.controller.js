@@ -2,6 +2,7 @@ const Media = require('../../models/Media');
 const storageService = require('../../services/storage.service');
 const asyncHandler = require('../../middleware/async.middleware');
 const AppError = require('../../utils/appError');
+const logger = require('../../utils/logger');
 const path = require('path');
 const mongoose = require('mongoose');
 
@@ -42,6 +43,16 @@ exports.uploadMedia = asyncHandler(async (req, res, next) => {
     const mediaId = new mongoose.Types.ObjectId();
     const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
     const file_url = `${baseUrl}/api/v1/media/serve/${mediaId}`;
+
+    logger.info(`Creating media record: ${file.originalname}`, {
+      mediaId,
+      baseUrl,
+      file_url,
+      uploadResult: {
+        public_id: uploadResult.public_id,
+        secure_url: uploadResult.secure_url
+      }
+    });
 
     // Create media record with pre-generated _id and file_url
     const media = await Media.create({

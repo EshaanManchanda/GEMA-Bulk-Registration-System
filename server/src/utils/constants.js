@@ -19,6 +19,20 @@ module.exports = {
     ARCHIVED: 'archived'
   },
 
+  // Event Types
+  EVENT_TYPES: {
+    EXAM: 'exam',
+    OLYMPIAD: 'olympiad',
+    CHAMPIONSHIP: 'championship',
+    COMPETITION: 'competition',
+    WORKSHOP: 'workshop',
+    SUBMISSION_ONLY: 'submission_only',
+    OTHER: 'other'
+  },
+
+  // Grade Levels (controlled enum)
+  GRADE_LEVELS: ['below_1', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+
   // Batch Status
   BATCH_STATUS: {
     DRAFT: 'draft',
