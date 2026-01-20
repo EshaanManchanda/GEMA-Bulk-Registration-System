@@ -178,9 +178,10 @@ const uploadPDF = multer({
 
 /**
  * Receipt upload (image)
+ * Always use memory storage to ensure buffer is available for storage services
  */
 const uploadReceipt = multer({
-  storage,
+  storage: memoryStorage,
   fileFilter: imageFileFilter,
   limits: {
     fileSize: FILE_SIZE_LIMITS.image
