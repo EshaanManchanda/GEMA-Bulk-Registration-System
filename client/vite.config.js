@@ -15,12 +15,18 @@ export default defineConfig({
       '@hooks': path.resolve(__dirname, './src/hooks'),
       '@utils': path.resolve(__dirname, './src/utils'),
       '@styles': path.resolve(__dirname, './src/styles'),
+      '@features': path.resolve(__dirname, './src/features'),
+      '@layouts': path.resolve(__dirname, './src/layouts'),
     },
   },
   server: {
     port: 5173,
     proxy: {
       '/api': {
+        target: process.env.VITE_API_URL || 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/uploads': {
         target: process.env.VITE_API_URL || 'http://localhost:5000',
         changeOrigin: true,
       },

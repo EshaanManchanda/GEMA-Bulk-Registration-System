@@ -251,3 +251,75 @@ export const useDeleteBatch = () => {
     },
   });
 };
+
+/**
+ * Check if batch is editable
+ */
+export const useBatchEditableStatus = (batchReference) => {
+  return useQuery({
+    queryKey: [...queryKeys.batches.detail(batchReference), 'editable'],
+    queryFn: async () => {
+      const response = await apiClient.get(`/batches/${batchReference}/editable`);
+      return response.data.data || response.data;
+    },
+    enabled: !!batchReference,
+  });
+};
+
+/**
+ * Add student to batch
+ */
+export const useAddStudent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ batchReference, studentData }) => {
+      const response = await apiClient.post(`/batches/${batchReference}/students`, studentData);
+      return response.data.data || response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.batches.detail(variables.batchReference) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.batches.statistics });
+    },
+  });
+};
+
+/**
+ * Update student in batch
+ */
+export const useUpdateStudent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ batchReference, registrationId, studentData }) => {
+      const response = await apiClient.put(
+        `/batches/${batchReference}/students/${registrationId}`,
+        studentData
+      );
+      return response.data.data || response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.batches.detail(variables.batchReference) });
+    },
+  });
+};
+
+/**
+ * Remove student from batch
+ */
+export const useRemoveStudent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ batchReference, registrationId }) => {
+      const response = await apiClient.delete(
+        `/batches/${batchReference}/students/${registrationId}`
+      );
+      return response.data.data || response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.batches.detail(variables.batchReference) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.batches.statistics });
+    },
+  });
+};

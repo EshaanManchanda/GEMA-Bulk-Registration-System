@@ -589,6 +589,265 @@ exports.getMyStatistics = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * @desc    Add a student to a batch (pre-payment only)
+ * @route   POST /api/v1/batches/:batchReference/students
+ * @access  Private (School - own batches)
+ */
+exports.addStudent = asyncHandler(async (req, res, next) => {
+  const { batchReference } = req.params;
+  const { student_name, grade, section, dynamic_data } = req.body;
+
+  // Find batch and verify ownership
+  const batch = await Batch.findOne({
+    batch_reference: batchReference,
+    school_id: req.user.id
+  }).populate('event_id');
+
+  if (!batch) {
+    return next(new AppError('Batch not found', 404));
+  }
+
+  // Check if payment is not completed
+  if (batch.payment_status === PAYMENT_STATUS.COMPLETED) {
+    return next(new AppError('Cannot modify batch after payment is completed', 400));
+  }
+
+  // Validate required fields
+  if (!student_name || !grade) {
+    return next(new AppError('Student name and grade are required', 400));
+  }
+
+  // Create new registration
+  const registration = await Registration.create({
+    batch_id: batch._id,
+    school_id: req.user.id,
+    event_id: batch.event_id._id,
+    student_name: student_name.trim(),
+    grade: grade.trim(),
+    section: section?.trim() || '',
+    dynamic_data: dynamic_data || {}
+  });
+
+  // Update batch totals
+  const event = batch.event_id;
+  const newStudentCount = batch.student_count + 1;
+  const baseFee = batch.currency === 'INR' ? event.base_fee_inr : event.base_fee_usd;
+
+  const { baseAmount, discountPercentage, discountAmount, totalAmount } = calculateTotalAmount(
+    baseFee,
+    newStudentCount,
+    event.bulk_discount_rules
+  );
+
+  batch.student_count = newStudentCount;
+  batch.total_students = newStudentCount;
+  batch.base_amount = baseAmount;
+  batch.discount_percentage = discountPercentage;
+  batch.discount_amount = discountAmount;
+  batch.total_amount = totalAmount;
+  batch.registration_ids.push(registration._id);
+  await batch.save();
+
+  logger.info(`Student added to batch ${batchReference}: ${registration.registration_id}`);
+
+  res.status(201).json({
+    status: 'success',
+    message: 'Student added successfully',
+    data: {
+      registration: {
+        registration_id: registration.registration_id,
+        student_name: registration.student_name,
+        grade: registration.grade,
+        section: registration.section
+      },
+      batch_totals: {
+        student_count: batch.student_count,
+        base_amount: batch.base_amount,
+        discount_percentage: batch.discount_percentage,
+        discount_amount: batch.discount_amount,
+        total_amount: batch.total_amount
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Update a student in a batch (pre-payment only)
+ * @route   PUT /api/v1/batches/:batchReference/students/:registrationId
+ * @access  Private (School - own batches)
+ */
+exports.updateStudent = asyncHandler(async (req, res, next) => {
+  const { batchReference, registrationId } = req.params;
+  const { student_name, grade, section, dynamic_data } = req.body;
+
+  // Find batch and verify ownership
+  const batch = await Batch.findOne({
+    batch_reference: batchReference,
+    school_id: req.user.id
+  });
+
+  if (!batch) {
+    return next(new AppError('Batch not found', 404));
+  }
+
+  // Check if payment is not completed
+  if (batch.payment_status === PAYMENT_STATUS.COMPLETED) {
+    return next(new AppError('Cannot modify batch after payment is completed', 400));
+  }
+
+  // Find registration
+  const registration = await Registration.findOne({
+    registration_id: registrationId,
+    batch_id: batch._id
+  });
+
+  if (!registration) {
+    return next(new AppError('Registration not found in this batch', 404));
+  }
+
+  // Update fields if provided
+  if (student_name) registration.student_name = student_name.trim();
+  if (grade) registration.grade = grade.trim();
+  if (section !== undefined) registration.section = section?.trim() || '';
+  if (dynamic_data) {
+    // Merge dynamic data
+    const currentData = registration.dynamic_data instanceof Map
+      ? Object.fromEntries(registration.dynamic_data)
+      : registration.dynamic_data || {};
+    registration.dynamic_data = { ...currentData, ...dynamic_data };
+  }
+
+  await registration.save();
+
+  logger.info(`Student updated in batch ${batchReference}: ${registrationId}`);
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Student updated successfully',
+    data: {
+      registration: {
+        registration_id: registration.registration_id,
+        student_name: registration.student_name,
+        grade: registration.grade,
+        section: registration.section,
+        dynamic_data: registration.getDynamicDataObject()
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Remove a student from a batch (pre-payment only)
+ * @route   DELETE /api/v1/batches/:batchReference/students/:registrationId
+ * @access  Private (School - own batches)
+ */
+exports.removeStudent = asyncHandler(async (req, res, next) => {
+  const { batchReference, registrationId } = req.params;
+
+  // Find batch and verify ownership
+  const batch = await Batch.findOne({
+    batch_reference: batchReference,
+    school_id: req.user.id
+  }).populate('event_id');
+
+  if (!batch) {
+    return next(new AppError('Batch not found', 404));
+  }
+
+  // Check if payment is not completed
+  if (batch.payment_status === PAYMENT_STATUS.COMPLETED) {
+    return next(new AppError('Cannot modify batch after payment is completed', 400));
+  }
+
+  // Check minimum students
+  if (batch.student_count <= 1) {
+    return next(new AppError('Cannot remove the last student. Delete the batch instead.', 400));
+  }
+
+  // Find registration
+  const registration = await Registration.findOne({
+    registration_id: registrationId,
+    batch_id: batch._id
+  });
+
+  if (!registration) {
+    return next(new AppError('Registration not found in this batch', 404));
+  }
+
+  // Delete registration
+  await registration.deleteOne();
+
+  // Update batch totals
+  const event = batch.event_id;
+  const newStudentCount = batch.student_count - 1;
+  const baseFee = batch.currency === 'INR' ? event.base_fee_inr : event.base_fee_usd;
+
+  const { baseAmount, discountPercentage, discountAmount, totalAmount } = calculateTotalAmount(
+    baseFee,
+    newStudentCount,
+    event.bulk_discount_rules
+  );
+
+  batch.student_count = newStudentCount;
+  batch.total_students = newStudentCount;
+  batch.base_amount = baseAmount;
+  batch.discount_percentage = discountPercentage;
+  batch.discount_amount = discountAmount;
+  batch.total_amount = totalAmount;
+  batch.registration_ids = batch.registration_ids.filter(
+    id => id.toString() !== registration._id.toString()
+  );
+  await batch.save();
+
+  logger.info(`Student removed from batch ${batchReference}: ${registrationId}`);
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Student removed successfully',
+    data: {
+      removed_registration_id: registrationId,
+      batch_totals: {
+        student_count: batch.student_count,
+        base_amount: batch.base_amount,
+        discount_percentage: batch.discount_percentage,
+        discount_amount: batch.discount_amount,
+        total_amount: batch.total_amount
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Get editable status of a batch
+ * @route   GET /api/v1/batches/:batchReference/editable
+ * @access  Private (School - own batches)
+ */
+exports.getBatchEditableStatus = asyncHandler(async (req, res, next) => {
+  const { batchReference } = req.params;
+
+  const batch = await Batch.findOne({
+    batch_reference: batchReference,
+    school_id: req.user.id
+  }).select('payment_status status');
+
+  if (!batch) {
+    return next(new AppError('Batch not found', 404));
+  }
+
+  const isEditable = batch.payment_status !== PAYMENT_STATUS.COMPLETED;
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      editable: isEditable,
+      payment_status: batch.payment_status,
+      batch_status: batch.status,
+      reason: isEditable ? null : 'Payment has been completed. Batch cannot be modified.'
+    }
+  });
+});
+
+/**
  * @desc    Download batch data as CSV file
  * @route   GET /api/v1/batches/:batchReference/download
  * @access  Private (School)

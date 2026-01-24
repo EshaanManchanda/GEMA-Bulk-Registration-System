@@ -81,4 +81,43 @@ router.get(
   bulkRegistrationController.downloadBatchCSV
 );
 
+// ===============================================
+// BATCH EDITING ROUTES (Pre-Payment Only)
+// ===============================================
+
+// Check if batch is editable
+router.get(
+  '/:batchReference/editable',
+  verifyToken,
+  requireSchool,
+  bulkRegistrationController.getBatchEditableStatus
+);
+
+// Add student to batch
+router.post(
+  '/:batchReference/students',
+  verifyToken,
+  checkUserStatus,
+  requireSchool,
+  bulkRegistrationController.addStudent
+);
+
+// Update student in batch
+router.put(
+  '/:batchReference/students/:registrationId',
+  verifyToken,
+  checkUserStatus,
+  requireSchool,
+  bulkRegistrationController.updateStudent
+);
+
+// Remove student from batch
+router.delete(
+  '/:batchReference/students/:registrationId',
+  verifyToken,
+  checkUserStatus,
+  requireSchool,
+  bulkRegistrationController.removeStudent
+);
+
 module.exports = router;

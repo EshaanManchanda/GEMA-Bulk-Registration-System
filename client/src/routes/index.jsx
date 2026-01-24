@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import PublicRoute from '../components/common/PublicRoute';
-import { SchoolRoute, AdminRoute } from '../components/common/ProtectedRoute';
+import PublicRoute from '@/features/auth/components/PublicRoute';
+import { SchoolRoute, AdminRoute } from '@/features/auth/components/ProtectedRoute';
 
 /**
  * Main Router Configuration
@@ -53,78 +53,78 @@ const ComingSoon = ({ title = 'Coming Soon' }) => (
 );
 
 // School Auth Pages
-import SchoolLogin from '../pages/school/auth/Login';
-import SchoolRegister from '../pages/school/auth/Register';
-import SchoolForgotPassword from '../pages/school/auth/ForgotPassword';
-import SchoolResetPassword from '../pages/school/auth/ResetPassword';
-import SchoolVerifyEmail from '../pages/school/auth/VerifyEmail';
+import SchoolLogin from '@/features/school/auth/Login';
+import SchoolRegister from '@/features/school/auth/Register';
+import SchoolForgotPassword from '@/features/school/auth/ForgotPassword';
+import SchoolResetPassword from '@/features/school/auth/ResetPassword';
+import SchoolVerifyEmail from '@/features/school/auth/VerifyEmail';
 
 // Admin Auth Pages
-import AdminLogin from '../pages/admin/auth/Login';
+import AdminLogin from '@/features/admin/auth/Login';
 
 // School Portal Pages
-import SchoolDashboard from '../pages/school/dashboard/Dashboard';
-import SchoolEvents from '../pages/school/events/EventsList';
-import EventDetails from '../pages/school/events/EventDetails';
-import MyBatches from '../pages/school/batches/MyBatches';
-import BatchDetails from '../pages/school/batches/BatchDetails';
-import UploadBatch from '../pages/school/batches/UploadBatch';
+import SchoolDashboard from '@/features/school/dashboard/Dashboard';
+import SchoolEvents from '@/features/school/events/EventsList';
+import EventDetails from '@/features/school/events/EventDetails';
+import MyBatches from '@/features/school/batches/MyBatches';
+import BatchDetails from '@/features/school/batches/BatchDetails';
+import UploadBatch from '@/features/school/batches/UploadBatch';
 
 // Payment Pages
-import MakePayment from '../pages/school/payments/MakePayment';
-import PaymentHistory from '../pages/school/payments/PaymentHistory';
-import PaymentDetails from '../pages/school/payments/PaymentDetails';
-import PaymentSuccess from '../pages/school/payments/PaymentSuccess';
-import PaymentFailure from '../pages/school/payments/PaymentFailure';
+import MakePayment from '@/features/school/payments/MakePayment';
+import PaymentHistory from '@/features/school/payments/PaymentHistory';
+import PaymentDetails from '@/features/school/payments/PaymentDetails';
+import PaymentSuccess from '@/features/school/payments/PaymentSuccess';
+import PaymentFailure from '@/features/school/payments/PaymentFailure';
 
 // Invoice Pages
-import InvoicesList from '../pages/school/invoices/InvoicesList';
+import InvoicesList from '@/features/school/invoices/InvoicesList';
 
 // Profile Pages
-import ViewProfile from '../pages/school/profile/ViewProfile';
-import EditProfile from '../pages/school/profile/EditProfile';
-import ChangePassword from '../pages/school/profile/ChangePassword';
+import ViewProfile from '@/features/school/profile/ViewProfile';
+import EditProfile from '@/features/school/profile/EditProfile';
+import ChangePassword from '@/features/school/profile/ChangePassword';
 
 // Admin Portal Pages
-import AdminDashboard from '../pages/admin/dashboard/Dashboard';
-import SchoolsList from '../pages/admin/schools/SchoolsList';
-import SchoolDetails from '../pages/admin/schools/SchoolDetails';
-import SchoolEdit from '../pages/admin/schools/SchoolEdit';
-import PaymentsList from '../pages/admin/payments/PaymentsList';
-import PendingVerifications from '../pages/admin/payments/PendingVerifications';
-import AdminPaymentDetails from '../pages/admin/payments/PaymentDetails';
-import EventsList from '../pages/admin/events/EventsList';
-import AdminEventDetails from '../pages/admin/events/EventDetails';
-import AdminBatchDetails from '../pages/admin/events/BatchDetails';
-import AdminStudentDetails from '../pages/admin/registrations/StudentDetails';
-import CreateEvent from '../pages/admin/events/CreateEvent';
-import EditEvent from '../pages/admin/events/EditEvent';
-import EventAnalytics from '../pages/admin/events/EventAnalytics';
-import ChatbotAnalytics from '../pages/admin/chatbot/ChatbotAnalytics';
-import GlobalAnalytics from '../pages/admin/analytics/GlobalAnalytics';
-import Settings from '../pages/admin/settings/Settings';
-import BrandSettings from '../pages/admin/settings/BrandSettings';
-import MediaLibrary from '../pages/admin/media/MediaLibrary';
-import AdminProfile from '../pages/admin/profile/ViewProfile';
-import AdminEditProfile from '../pages/admin/profile/EditProfile';
-import AdminChangePassword from '../pages/admin/profile/ChangePassword';
+import AdminDashboard from '@/features/admin/dashboard/Dashboard';
+import SchoolsList from '@/features/admin/schools/SchoolsList';
+import SchoolDetails from '@/features/admin/schools/SchoolDetails';
+import SchoolEdit from '@/features/admin/schools/SchoolEdit';
+import PaymentsList from '@/features/admin/payments/PaymentsList';
+import PendingVerifications from '@/features/admin/payments/PendingVerifications';
+import AdminPaymentDetails from '@/features/admin/payments/PaymentDetails';
+import EventsList from '@/features/admin/events/EventsList';
+import AdminEventDetails from '@/features/admin/events/EventDetails';
+import AdminBatchDetails from '@/features/admin/events/BatchDetails';
+import AdminStudentDetails from '@/features/admin/registrations/StudentDetails';
+import CreateEvent from '@/features/admin/events/CreateEvent';
+import EditEvent from '@/features/admin/events/EditEvent';
+import EventAnalytics from '@/features/admin/events/EventAnalytics';
+import ChatbotAnalytics from '@/features/admin/chatbot/ChatbotAnalytics';
+import GlobalAnalytics from '@/features/admin/analytics/GlobalAnalytics';
+import Settings from '@/features/admin/settings/Settings';
+import BrandSettings from '@/features/admin/settings/BrandSettings';
+import MediaLibrary from '@/features/admin/media/MediaLibrary';
+import AdminProfile from '@/features/admin/profile/ViewProfile';
+import AdminEditProfile from '@/features/admin/profile/EditProfile';
+import AdminChangePassword from '@/features/admin/profile/ChangePassword';
 
 // Public Pages
-import EventPublic from '../pages/public/EventPublic';
-import ResultLookup from '../pages/public/ResultLookup';
+import EventPublic from '@/features/public/EventPublic';
+import ResultLookup from '@/features/public/ResultLookup';
 
 // Result Pages
-import ResultUpload from '../pages/admin/results/ResultUpload';
-import EventResults from '../pages/admin/results/EventResults';
-import MyResults from '../pages/school/results/MyResults';
+import ResultUpload from '@/features/admin/results/ResultUpload';
+import EventResults from '@/features/admin/results/EventResults';
+import MyResults from '@/features/school/results/MyResults';
 
 // Certificate Pages
-import CertificatesList from '../pages/school/certificates/CertificatesList';
-import CertificateManagement from '../pages/admin/certificates/CertificateManagement';
-import CertificateVerify from '../pages/public/CertificateVerify';
+import CertificatesList from '@/features/school/certificates/CertificatesList';
+import CertificateManagement from '@/features/admin/certificates/CertificateManagement';
+import CertificateVerify from '@/features/public/CertificateVerify';
 
 // Error Pages
-import Unauthorized from '../pages/Unauthorized';
+import Unauthorized from '@/features/auth/components/Unauthorized';
 
 /**
  * Router Component
