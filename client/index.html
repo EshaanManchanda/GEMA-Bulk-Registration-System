@@ -5,8 +5,10 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://res.cloudinary.com blob: http://localhost:*; connect-src 'self' http://localhost:* https://*.razorpay.com; frame-src https://*.razorpay.com;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://js.stripe.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src
+    'self' data: https://res.cloudinary.com blob: http://localhost:*; connect-src 'self' http://localhost:*
+    https://*.razorpay.com https://api.stripe.com; frame-src https://*.razorpay.com https://js.stripe.com;" />
   <meta name="description" content="GEMA Bulk Registration System - Manage event registrations efficiently" />
   <title>GEMA Events - Registration System</title>
 
