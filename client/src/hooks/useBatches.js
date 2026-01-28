@@ -204,22 +204,32 @@ export const useDownloadTemplate = () => {
 
         // Re-throw with better message
         if (error.response?.data) {
-          // Try to extract error message from blob response
+          // Extract error message from blob response
+          let serverMessage = '';
           try {
-            const text = await error.response.data.text();
+            const blob = error.response.data;
+            const text = typeof blob.text === 'function'
+              ? await blob.text()
+              : String(blob);
             const json = JSON.parse(text);
-            throw new Error(json.message || 'Failed to download template');
-          } catch (parseError) {
-            // If it's not JSON, check for specific error status codes
-            if (error.response.status === 404) {
-              throw new Error('Event not found or template not available');
-            } else if (error.response.status === 400) {
-              throw new Error('Event is not accepting registrations or form schema not configured');
-            } else if (error.response.status === 403) {
-              throw new Error('You do not have permission to download this template');
-            } else {
-              throw new Error('Failed to download template. Please try again or contact support.');
-            }
+            serverMessage = json.message || '';
+          } catch {
+            // JSON parse failed, use status-based fallback
+          }
+
+          if (serverMessage) {
+            throw new Error(serverMessage);
+          }
+
+          // Fallback for specific error status codes
+          if (error.response.status === 404) {
+            throw new Error('Event not found or template not available');
+          } else if (error.response.status === 400) {
+            throw new Error('Event is not accepting registrations or form schema not configured');
+          } else if (error.response.status === 403) {
+            throw new Error('You do not have permission to download this template');
+          } else {
+            throw new Error('Failed to download template. Please try again or contact support.');
           }
         }
 
