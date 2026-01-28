@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import DOMPurify from 'dompurify'
 
 const ChatWidget = () => {
   const [messages, setMessages] = useState([
@@ -86,7 +87,7 @@ const ChatWidget = () => {
     const urlRegex = /(https?:\/\/[^\s]+)/g
     formattedText = formattedText.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
     
-    return { __html: formattedText }
+    return { __html: DOMPurify.sanitize(formattedText) }
   }
 
   const handleWebsiteSelection = async (websiteType, data) => {

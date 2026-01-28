@@ -1,6 +1,7 @@
 const { HfInference } = require('@huggingface/inference');
 
 const HF_ACCESS_TOKEN = process.env.HF_TOKEN;
+const HF_TIMEOUT_MS = 10000;
 const hf = new HfInference(HF_ACCESS_TOKEN);
 
 // Model IDs from env with fallbacks
@@ -60,10 +61,15 @@ const detectIntent = async (message) => {
     // HuggingFace AI classification
     console.log(`Classifying intent with HF for: "${message.substring(0, 50)}..."`);
 
-    const classificationResult = await hf.textClassification({
-      model: INTENT_CLASSIFICATION_MODEL,
-      inputs: message
-    });
+    const classificationResult = await Promise.race([
+      hf.textClassification({
+        model: INTENT_CLASSIFICATION_MODEL,
+        inputs: message
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('HF API timeout')), HF_TIMEOUT_MS)
+      )
+    ]);
 
     const predictions = Array.isArray(classificationResult) ? classificationResult : [classificationResult];
 
@@ -177,16 +183,21 @@ const extractEmail = (message) => {
  */
 const generateConversationalResponse = async (message) => {
   try {
-    const response = await hf.textGeneration({
-      model: CONVERSATIONAL_MODEL,
-      inputs: message,
-      parameters: {
-        max_new_tokens: 250,
-        temperature: 0.7,
-        top_p: 0.95,
-        do_sample: true
-      }
-    });
+    const response = await Promise.race([
+      hf.textGeneration({
+        model: CONVERSATIONAL_MODEL,
+        inputs: message,
+        parameters: {
+          max_new_tokens: 250,
+          temperature: 0.7,
+          top_p: 0.95,
+          do_sample: true
+        }
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('HF API timeout')), HF_TIMEOUT_MS)
+      )
+    ]);
 
     return response.generated_text || 'Hello! How can I help you today?';
   } catch (error) {

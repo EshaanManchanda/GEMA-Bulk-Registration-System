@@ -11,9 +11,17 @@ exports.sendMessage = async (req, res) => {
   try {
     const { message, sessionId } = req.body;
 
+    const MAX_MESSAGE_LENGTH = 2000;
+
     if (!message || !message.trim()) {
       return res.status(400).json({
         message: 'Message is required'
+      });
+    }
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({
+        message: `Message too long. Max ${MAX_MESSAGE_LENGTH} characters.`
       });
     }
 
@@ -22,6 +30,8 @@ exports.sendMessage = async (req, res) => {
         message: 'Session ID is required'
       });
     }
+
+    const trimmedMessage = message.trim();
 
     // Get user info
     const userId = req.user?.id || null;
@@ -36,9 +46,9 @@ exports.sendMessage = async (req, res) => {
     const startTime = Date.now();
 
     // Detect intent
-    const intent = await detectIntent(message);
-    const eventInfo = extractEventInfo(message);
-    const extractedEmail = extractEmail(message);
+    const intent = await detectIntent(trimmedMessage);
+    const eventInfo = extractEventInfo(trimmedMessage);
+    const extractedEmail = extractEmail(trimmedMessage);
 
     let response = {
       message: '',
@@ -374,7 +384,7 @@ exports.sendMessage = async (req, res) => {
 
     // Save chat message
     await Chat.addMessage(sessionId, {
-      text: message,
+      text: trimmedMessage,
       sender: 'user',
       data: { intent }
     }, userId, userType);
@@ -399,21 +409,34 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
+const DEFAULT_HISTORY_LIMIT = 50;
+
 /**
  * Get chat history
  */
 exports.getHistory = async (req, res) => {
   try {
     const { sessionId } = req.params;
+    const limit = Math.min(
+      parseInt(req.query.limit) || DEFAULT_HISTORY_LIMIT,
+      200
+    );
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
 
     const chat = await Chat.findOne({ session_id: sessionId });
 
     if (!chat) {
-      return res.json({ messages: [] });
+      return res.json({ messages: [], total: 0 });
     }
 
+    const total = chat.messages.length;
+    const paginatedMessages = chat.messages.slice(offset, offset + limit);
+
     res.json({
-      messages: chat.messages,
+      messages: paginatedMessages,
+      total,
+      limit,
+      offset,
       summary: chat.getSummary()
     });
 

@@ -24,7 +24,7 @@ export const useChatStore = create((set, get) => ({
       set({ sessionId: existingSessionId });
       get().loadHistory(existingSessionId);
     } else {
-      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const newSessionId = crypto.randomUUID();
       localStorage.setItem('chat_session_id', newSessionId);
       set({ sessionId: newSessionId });
     }

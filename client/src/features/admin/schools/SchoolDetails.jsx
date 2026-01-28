@@ -557,7 +557,7 @@ const SchoolDetails = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <Link
-                              to={`/school/batches/${batch.batch_reference}`}
+                              to={`/admin/batches/${batch.batch_reference}`}
                               className="text-purple-600 hover:text-purple-900"
                             >
                               View Details

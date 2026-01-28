@@ -1,12 +1,24 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const chatController = require('../controllers/chatbot/chat.controller');
 const analyticsController = require('../controllers/chatbot/chatAnalytics.controller');
 const { requireAuth, optionalAuth } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/role.middleware');
 
+const chatMessageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: {
+    message: 'Too many messages. Please wait a moment.',
+    suggestions: ['Try again in a minute']
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // Public routes (with optional auth)
-router.post('/message', optionalAuth, chatController.sendMessage);
+router.post('/message', chatMessageLimiter, optionalAuth, chatController.sendMessage);
 router.post('/detect-intent', optionalAuth, chatController.detectIntentTest);
 
 // Authenticated routes

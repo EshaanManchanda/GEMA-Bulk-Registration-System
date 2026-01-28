@@ -369,7 +369,14 @@ exports.updateSchool = asyncHandler(async (req, res, next) => {
  */
 exports.getSchoolRegistrations = asyncHandler(async (req, res, next) => {
   const { schoolId } = req.params;
-  const { page = 1, limit = 20, event_id } = req.query;
+  const {
+    page = 1,
+    limit = 20,
+    event_id,
+    event,
+    status,
+    search
+  } = req.query;
 
   // Verify school exists
   const school = await School.findById(schoolId);
@@ -377,30 +384,60 @@ exports.getSchoolRegistrations = asyncHandler(async (req, res, next) => {
     return next(new AppError('School not found', 404));
   }
 
-  // Build query
+  // Build query on Batch model
   const query = { school_id: schoolId };
-  if (event_id) {
-    query.event_id = event_id;
+  const eventFilter = event_id || event;
+  if (eventFilter) {
+    query.event_id = eventFilter;
+  }
+  if (status) {
+    query.payment_status = status;
   }
 
-  // Get registrations
-  const registrations = await Registration.find(query)
-    .populate('event_id', 'title event_slug')
-    .populate('batch_id', 'batch_reference')
-    .sort({ created_at: -1 })
+  // Get batches with populated event and students
+  let batchQuery = Batch.find(query)
+    .populate('event_id', 'title event_slug _id')
+    .populate('registration_ids')
+    .sort({ created_at: -1 });
+
+  const total = await Batch.countDocuments(query);
+
+  const batches = await batchQuery
     .limit(limit * 1)
     .skip((page - 1) * limit);
 
-  const total = await Registration.countDocuments(query);
+  // Transform to match frontend expected shape
+  const transformedBatches = batches.map((batch) => {
+    const b = batch.toObject();
+    return {
+      ...b,
+      event: b.event_id
+        ? { _id: b.event_id._id, name: b.event_id.title }
+        : null,
+      students: b.registration_ids || [],
+    };
+  });
+
+  // Apply search filter on event name (post-query)
+  let filtered = transformedBatches;
+  if (search) {
+    const term = search.toLowerCase();
+    filtered = transformedBatches.filter(
+      (b) => b.event?.name?.toLowerCase().includes(term)
+        || b.batch_reference?.toLowerCase().includes(term)
+    );
+  }
 
   res.status(200).json({
     status: 'success',
     data: {
-      registrations,
+      batches: filtered,
       pagination: {
-        total,
+        total: search ? filtered.length : total,
         page: parseInt(page),
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(
+          (search ? filtered.length : total) / limit
+        )
       }
     }
   });
