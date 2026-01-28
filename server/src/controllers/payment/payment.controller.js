@@ -658,7 +658,12 @@ exports.rejectOfflinePayment = asyncHandler(async (req, res, next) => {
 exports.downloadReceipt = asyncHandler(async (req, res, next) => {
   const { paymentId } = req.params;
 
-  const payment = await Payment.findById(paymentId)
+  const isObjectId = mongoose.Types.ObjectId.isValid(paymentId);
+  const query = isObjectId
+    ? { _id: paymentId }
+    : { payment_reference: paymentId };
+
+  const payment = await Payment.findOne(query)
     .populate('school_id', '_id')
     .select('receipt_url payment_status school_id offline_payment_details');
 

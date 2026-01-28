@@ -58,7 +58,7 @@ const PaymentHistory = () => {
       sortable: true,
       render: (value, row) => (
         <Link
-          to={`/school/payments/${row._id}`}
+          to={`/school/payments/${row.payment_reference}`}
           className="text-primary-600 hover:text-primary-700 font-medium"
         >
           {value}
@@ -162,7 +162,7 @@ const PaymentHistory = () => {
               <Table
                 columns={tableColumns}
                 data={data.payments}
-                onRowClick={(row) => window.location.href = `/school/payments/${row._id}`}
+                onRowClick={(row) => window.location.href = `/school/payments/${row.payment_reference}`}
               />
 
               {/* Pagination */}
