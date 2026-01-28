@@ -388,8 +388,11 @@ exports.initiateOfflinePayment = asyncHandler(async (req, res, next) => {
 exports.getPayment = asyncHandler(async (req, res, next) => {
   const { paymentId } = req.params;
 
-  // Build query
-  const query = { _id: paymentId };
+  // Build query - support both _id and payment_reference
+  const isObjectId = mongoose.Types.ObjectId.isValid(paymentId);
+  const query = isObjectId
+    ? { _id: paymentId }
+    : { payment_reference: paymentId };
 
   // If school user, restrict to own payments
   if (req.user.user_type === 'school') {
