@@ -10,8 +10,21 @@ const AppError = require('../utils/appError');
 const getPublicEvents = asyncHandler(async (req, res) => {
   const { category, grade_levels, search, sortBy = 'event_date', sortOrder = 'asc', page = 1, limit = 20 } = req.query;
 
-  // Build query for active events only
-  const query = { status: 'active' };
+  // Build query for active events with valid registration deadlines
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const deadlineFilter = [
+    { 'schedule.registration_deadline': { $gte: startOfToday } },
+    {
+      'schedule.registration_deadline': { $exists: false },
+      registration_deadline: { $gte: startOfToday }
+    },
+    {
+      'schedule.registration_deadline': { $exists: false },
+      registration_deadline: { $exists: false }
+    }
+  ];
+  const query = { status: 'active', $and: [{ $or: deadlineFilter }] };
 
   // Filter by category
   if (category) {
@@ -26,10 +39,12 @@ const getPublicEvents = asyncHandler(async (req, res) => {
 
   // Search by name or description
   if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
-    ];
+    query.$and.push({
+      $or: [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ]
+    });
   }
 
   // Build sort object

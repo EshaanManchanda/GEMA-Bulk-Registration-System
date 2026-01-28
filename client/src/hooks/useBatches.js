@@ -171,6 +171,15 @@ export const useDownloadTemplate = () => {
           throw new Error('Received empty file from server');
         }
 
+        // Check if response is actually an error (JSON) instead of a file
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.includes('application/json')) {
+          // Response is JSON error, not a blob
+          const text = await response.data.text();
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.message || 'Failed to download template');
+        }
+
         // Extract filename from Content-Disposition header or use default
         const contentDisposition = response.headers['content-disposition'];
         let filename = `${eventSlug}-template.xlsx`;
@@ -192,18 +201,34 @@ export const useDownloadTemplate = () => {
         return response.data;
       } catch (error) {
         console.error('Template download error:', error);
+
         // Re-throw with better message
         if (error.response?.data) {
-          // Try to extract error message from blob
-          const text = await error.response.data.text();
+          // Try to extract error message from blob response
           try {
+            const text = await error.response.data.text();
             const json = JSON.parse(text);
             throw new Error(json.message || 'Failed to download template');
-          } catch {
-            throw new Error('Failed to download template');
+          } catch (parseError) {
+            // If it's not JSON, check for specific error status codes
+            if (error.response.status === 404) {
+              throw new Error('Event not found or template not available');
+            } else if (error.response.status === 400) {
+              throw new Error('Event is not accepting registrations or form schema not configured');
+            } else if (error.response.status === 403) {
+              throw new Error('You do not have permission to download this template');
+            } else {
+              throw new Error('Failed to download template. Please try again or contact support.');
+            }
           }
         }
-        throw error;
+
+        // Network or other errors
+        if (error.message) {
+          throw error;
+        }
+
+        throw new Error('Failed to download template. Please check your connection and try again.');
       }
     },
   });

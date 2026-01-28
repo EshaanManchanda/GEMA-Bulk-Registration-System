@@ -28,19 +28,28 @@ exports.downloadTemplate = asyncHandler(async (req, res, next) => {
   const { eventSlug } = req.params;
   const { format = 'xlsx' } = req.query; // Support format query param for backward compat
 
+  logger.info(`Template download requested for event: ${eventSlug} by school: ${req.user.id}`);
+
   // Find event
   const event = await Event.findOne({ event_slug: eventSlug });
   if (!event) {
-    return next(new AppError('Event not found', 404));
+    logger.warn(`Template download failed: Event not found - ${eventSlug}`);
+    return next(new AppError(`Event not found with slug: ${eventSlug}`, 404));
   }
+
+  logger.info(`Event found: ${event.title} (ID: ${event._id}, Status: ${event.status})`);
 
   // Check if form schema is configured
   if (!event.form_schema || event.form_schema.length === 0) {
+    logger.warn(`Template download failed: Form schema not configured for event ${event.title}`);
     return next(new AppError('Event form schema not configured. Please contact administrator.', 400));
   }
 
+  logger.info(`Form schema validated: ${event.form_schema.length} fields configured`);
+
   // Check if event is active
   if (event.status !== 'active') {
+    logger.warn(`Template download failed: Event ${event.title} is not active (status: ${event.status})`);
     return next(new AppError('This event is not currently accepting registrations', 400));
   }
 
@@ -48,16 +57,26 @@ exports.downloadTemplate = asyncHandler(async (req, res, next) => {
   const now = new Date();
   const regStart = event.schedule?.registration_start || event.registration_start_date;
   const regDeadline = event.schedule?.registration_deadline || event.registration_deadline;
+
   if (regStart && now < regStart) {
+    logger.warn(`Template download failed: Registration has not started for ${event.title} (starts: ${regStart})`);
     return next(new AppError('Registration has not yet started', 400));
   }
-  if (regDeadline && now > regDeadline) {
-    return next(new AppError('Registration period has ended', 400));
+  if (regDeadline) {
+    const deadlineEnd = new Date(regDeadline);
+    deadlineEnd.setHours(23, 59, 59, 999);
+    if (now > deadlineEnd) {
+      logger.warn(`Template download failed: Registration ended for ${event.title} (deadline: ${regDeadline})`);
+      return next(new AppError('Registration period has ended', 400));
+    }
   }
+
+  logger.info(`Registration period validated for event: ${event.title}`);
 
   try {
     if (format === 'csv') {
       // Legacy CSV format support
+      logger.info(`Generating CSV template for event: ${event.title}`);
       const buffer = csvGenerator.generateTemplate(event);
       const filename = csvGenerator.generateFilename(event);
 
@@ -66,16 +85,45 @@ exports.downloadTemplate = asyncHandler(async (req, res, next) => {
       res.setHeader('Content-Length', buffer.length);
       res.send(buffer);
 
-      logger.info(`CSV template downloaded for event: ${event.title} by school: ${req.user.id}`);
+      logger.info(`CSV template downloaded successfully for event: ${event.title} by school: ${req.user.id}`);
     } else {
       // Stream Excel directly to avoid binary corruption
-      await excelGenerator.streamTemplate(event, res);
+      logger.info(`Generating Excel template for event: ${event.title}`);
 
-      logger.info(`Excel template downloaded for event: ${event.title} by school: ${req.user.id}`);
+      try {
+        await excelGenerator.streamTemplate(event, res);
+        logger.info(`Excel template streamed successfully for event: ${event.title} by school: ${req.user.id}`);
+      } catch (streamError) {
+        // If streaming fails, try buffer fallback
+        logger.warn(`Excel streaming failed for event ${event.title}, trying buffer fallback:`, streamError);
+
+        const buffer = await excelGenerator.generateTemplate(event);
+        const filename = excelGenerator.generateFilename(event);
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', buffer.length);
+        res.send(buffer);
+
+        logger.info(`Excel template sent via buffer fallback for event: ${event.title}`);
+      }
     }
   } catch (error) {
-    logger.error(`Template generation failed for event ${event.event_slug}:`, error);
-    return next(new AppError(`Failed to generate template: ${error.message}`, 500));
+    logger.error(`Template generation failed for event ${event.event_slug}:`, {
+      error: error.message,
+      stack: error.stack,
+      eventId: event._id,
+      eventSlug: event.event_slug,
+      formSchemaCount: event.form_schema?.length
+    });
+
+    // Ensure we send a JSON error if headers haven't been sent yet
+    if (!res.headersSent) {
+      return next(new AppError(`Failed to generate template: ${error.message}`, 500));
+    } else {
+      // Headers already sent during streaming - log the error
+      logger.error(`Cannot send error response - headers already sent for event ${event.event_slug}`);
+    }
   }
 });
 
@@ -106,9 +154,9 @@ exports.validateCSV = asyncHandler(async (req, res, next) => {
 
   // Determine file type and use appropriate parser
   const isExcel = req.file.mimetype.includes('spreadsheet') ||
-                  req.file.mimetype.includes('excel') ||
-                  req.file.originalname.endsWith('.xlsx') ||
-                  req.file.originalname.endsWith('.xls');
+    req.file.mimetype.includes('excel') ||
+    req.file.originalname.endsWith('.xlsx') ||
+    req.file.originalname.endsWith('.xls');
 
   let result;
   if (isExcel) {
@@ -183,8 +231,12 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
   if (regStart && now < regStart) {
     return next(new AppError('Registration has not yet started', 400));
   }
-  if (regDeadline && now > regDeadline) {
-    return next(new AppError('Registration period has ended', 400));
+  if (regDeadline) {
+    const deadlineEnd = new Date(regDeadline);
+    deadlineEnd.setHours(23, 59, 59, 999);
+    if (now > deadlineEnd) {
+      return next(new AppError('Registration period has ended', 400));
+    }
   }
 
   // Try to use cached validation result first (performance optimization)
@@ -205,9 +257,9 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
 
     // Determine file type and use appropriate parser
     const isExcel = req.file.mimetype.includes('spreadsheet') ||
-                    req.file.mimetype.includes('excel') ||
-                    req.file.originalname.endsWith('.xlsx') ||
-                    req.file.originalname.endsWith('.xls');
+      req.file.mimetype.includes('excel') ||
+      req.file.originalname.endsWith('.xlsx') ||
+      req.file.originalname.endsWith('.xls');
 
     if (isExcel) {
       parseResult = await excelParser.parseAndValidate(req.file.buffer, event);
