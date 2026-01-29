@@ -46,6 +46,36 @@ exports.updateSettings = asyncHandler(async (req, res, next) => {
   if (maintenance_mode !== undefined) settings.maintenance_mode = maintenance_mode;
   if (registration_open !== undefined) settings.registration_open = registration_open;
 
+  // Update Payment Gateway Settings
+  if (req.body.payment_gateway) {
+    if (!settings.payment_gateway) settings.payment_gateway = {};
+
+    // Stripe
+    if (req.body.payment_gateway.stripe) {
+      if (!settings.payment_gateway.stripe) settings.payment_gateway.stripe = {};
+      const { publishable_key, secret_key, enabled } = req.body.payment_gateway.stripe;
+      if (publishable_key !== undefined) settings.payment_gateway.stripe.publishable_key = publishable_key;
+      if (secret_key !== undefined) settings.payment_gateway.stripe.secret_key = secret_key;
+      if (enabled !== undefined) settings.payment_gateway.stripe.enabled = enabled;
+    }
+
+    // Razorpay
+    if (req.body.payment_gateway.razorpay) {
+      if (!settings.payment_gateway.razorpay) settings.payment_gateway.razorpay = {};
+      const { key_id, key_secret, enabled } = req.body.payment_gateway.razorpay;
+      if (key_id !== undefined) settings.payment_gateway.razorpay.key_id = key_id;
+      if (key_secret !== undefined) settings.payment_gateway.razorpay.key_secret = key_secret;
+      if (enabled !== undefined) settings.payment_gateway.razorpay.enabled = enabled;
+    }
+
+    // Offline
+    if (req.body.payment_gateway.offline) {
+      if (!settings.payment_gateway.offline) settings.payment_gateway.offline = {};
+      const { enabled } = req.body.payment_gateway.offline;
+      if (enabled !== undefined) settings.payment_gateway.offline.enabled = enabled;
+    }
+  }
+
   await settings.save();
 
   logger.info(`Settings updated by admin: ${req.user.email}`);

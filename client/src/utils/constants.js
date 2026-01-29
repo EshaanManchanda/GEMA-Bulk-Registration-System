@@ -406,11 +406,11 @@ export const FILE_EXTENSIONS = {
 // FILE SIZE LIMITS (in bytes)
 // ===================================
 export const FILE_SIZE_LIMITS = {
-  CSV: 5 * 1024 * 1024, // 5MB
-  EXCEL: 10 * 1024 * 1024, // 10MB
-  SPREADSHEET: 10 * 1024 * 1024, // 10MB
-  IMAGE: 10 * 1024 * 1024, // 10MB
-  PDF: 5 * 1024 * 1024, // 5MB
+  CSV: 20 * 1024 * 1024, // 20MB
+  EXCEL: 20 * 1024 * 1024, // 20MB
+  SPREADSHEET: 20 * 1024 * 1024, // 20MB
+  IMAGE: 20 * 1024 * 1024, // 20MB
+  PDF: 20 * 1024 * 1024, // 20MB
 };
 
 // ===================================

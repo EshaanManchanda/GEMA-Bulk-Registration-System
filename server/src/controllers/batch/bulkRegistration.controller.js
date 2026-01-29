@@ -366,6 +366,18 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
     // Create individual registrations
     const registrations = [];
     for (const studentData of parseResult.data) {
+      // Determine exam date
+      let finalExamDate = null;
+      if (event.schedule_type === 'single_date') {
+        finalExamDate = event.event_start_date;
+      } else if (studentData.exam_date) {
+        // Use the date from the file if provided
+        finalExamDate = studentData.exam_date;
+
+        // Optional: Validate against allowed event dates if strictly required
+        // But for now, we trust the parser's date format validation
+      }
+
       let registration;
       if (useTransaction) {
         const regArray = await Registration.create([{
@@ -373,6 +385,8 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
           school_id: school._id,
           event_id: event._id,
           student_name: studentData.student_name,
+          student_email: studentData.student_email,
+          exam_date: finalExamDate,
           grade: studentData.grade,
           section: studentData.section,
           dynamic_data: studentData.dynamic_data
@@ -384,6 +398,8 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
           school_id: school._id,
           event_id: event._id,
           student_name: studentData.student_name,
+          student_email: studentData.student_email,
+          exam_date: finalExamDate,
           grade: studentData.grade,
           section: studentData.section,
           dynamic_data: studentData.dynamic_data
@@ -463,8 +479,8 @@ exports.getBatch = asyncHandler(async (req, res, next) => {
   // Find batch with populated data
   const batch = await Batch.findOne(query)
     .populate('school_id', 'name school_code country')
-    .populate('event_id', 'title event_slug category base_fee_inr base_fee_usd')
-    .populate('registration_ids', 'registration_id student_name grade section dynamic_data');
+    .populate('event_id', 'title event_slug category base_fee_inr base_fee_usd schedule_type event_start_date event_dates venue')
+    .populate('registration_ids', 'registration_id student_name student_email exam_date grade section dynamic_data');
 
   if (!batch) {
     return next(new AppError('Batch not found', 404));
@@ -647,7 +663,7 @@ exports.getMyStatistics = asyncHandler(async (req, res, next) => {
  */
 exports.addStudent = asyncHandler(async (req, res, next) => {
   const { batchReference } = req.params;
-  const { student_name, grade, section, dynamic_data } = req.body;
+  const { student_name, student_email, exam_date, grade, section, dynamic_data } = req.body;
 
   // Find batch and verify ownership
   const batch = await Batch.findOne({
@@ -669,12 +685,20 @@ exports.addStudent = asyncHandler(async (req, res, next) => {
     return next(new AppError('Student name and grade are required', 400));
   }
 
+  // Determine exam date
+  let finalExamDate = exam_date;
+  if (batch.event_id.schedule_type === 'single_date') {
+    finalExamDate = batch.event_id.event_start_date;
+  }
+
   // Create new registration
   const registration = await Registration.create({
     batch_id: batch._id,
     school_id: req.user.id,
     event_id: batch.event_id._id,
     student_name: student_name.trim(),
+    student_email: student_email ? student_email.trim().toLowerCase() : undefined,
+    exam_date: finalExamDate || undefined,
     grade: grade.trim(),
     section: section?.trim() || '',
     dynamic_data: dynamic_data || {}
@@ -730,7 +754,7 @@ exports.addStudent = asyncHandler(async (req, res, next) => {
  */
 exports.updateStudent = asyncHandler(async (req, res, next) => {
   const { batchReference, registrationId } = req.params;
-  const { student_name, grade, section, dynamic_data } = req.body;
+  const { student_name, student_email, exam_date, grade, section, dynamic_data } = req.body;
 
   // Find batch and verify ownership
   const batch = await Batch.findOne({
@@ -759,6 +783,8 @@ exports.updateStudent = asyncHandler(async (req, res, next) => {
 
   // Update fields if provided
   if (student_name) registration.student_name = student_name.trim();
+  if (student_email !== undefined) registration.student_email = student_email ? student_email.trim().toLowerCase() : undefined;
+  if (exam_date !== undefined) registration.exam_date = exam_date;
   if (grade) registration.grade = grade.trim();
   if (section !== undefined) registration.section = section?.trim() || '';
   if (dynamic_data) {

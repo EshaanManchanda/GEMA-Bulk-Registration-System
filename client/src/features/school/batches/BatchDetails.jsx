@@ -42,8 +42,10 @@ const BatchDetails = () => {
   const [studentToRemove, setStudentToRemove] = useState(null);
   const [studentForm, setStudentForm] = useState({
     student_name: '',
+    student_email: '',
     grade: '',
-    section: ''
+    section: '',
+    exam_date: ''
   });
 
   const isEditable = editableStatus?.editable ?? false;
@@ -70,7 +72,7 @@ const BatchDetails = () => {
 
   const openAddStudentModal = () => {
     setEditingStudent(null);
-    setStudentForm({ student_name: '', grade: '', section: '' });
+    setStudentForm({ student_name: '', student_email: '', grade: '', section: '', exam_date: '' });
     setShowStudentModal(true);
   };
 
@@ -78,8 +80,10 @@ const BatchDetails = () => {
     setEditingStudent(student);
     setStudentForm({
       student_name: student.name || student.student_name || '',
+      student_email: student.student_email || '',
       grade: student.grade || '',
-      section: student.section || ''
+      section: student.section || '',
+      exam_date: student.exam_date ? new Date(student.exam_date).toISOString().split('T')[0] : ''
     });
     setShowStudentModal(true);
   };
@@ -157,6 +161,8 @@ const BatchDetails = () => {
   const studentColumns = [
     { key: 'index', label: '#', render: (_, __, index) => index + 1 },
     { key: 'name', label: 'Name' },
+    { key: 'student_email', label: 'Email', render: (_, row) => row.student_email || '-' },
+    { key: 'exam_date', label: 'Exam Date', render: (_, row) => row.exam_date ? formatDate(row.exam_date) : '-' },
     { key: 'grade', label: 'Grade' },
     { key: 'section', label: 'Section' },
     ...(isEditable ? [{
@@ -568,6 +574,48 @@ const BatchDetails = () => {
                 placeholder="e.g., A, B, C"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Student Email
+              </label>
+              <Input
+                type="email"
+                value={studentForm.student_email}
+                onChange={(e) => setStudentForm(f => ({ ...f, student_email: e.target.value }))}
+                placeholder="Enter student email"
+              />
+            </div>
+
+            {batch?.event?.schedule_type === 'multiple_dates' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Exam Date <span className="text-red-500">*</span>
+                </label>
+                {batch.event.event_dates && batch.event.event_dates.length > 0 ? (
+                  <select
+                    value={studentForm.exam_date}
+                    onChange={(e) => setStudentForm(f => ({ ...f, exam_date: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select Exam Date</option>
+                    {batch.event.event_dates.map((d, i) => (
+                      <option key={i} value={new Date(d.date || d).toISOString().split('T')[0]}>
+                        {d.label ? `${d.label} - ` : ''}{formatDate(d.date || d)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    type="date"
+                    value={studentForm.exam_date}
+                    onChange={(e) => setStudentForm(f => ({ ...f, exam_date: e.target.value }))}
+                    required
+                  />
+                )}
+              </div>
+            )}
             <div className="flex justify-end gap-3 mt-6">
               <Button
                 type="button"

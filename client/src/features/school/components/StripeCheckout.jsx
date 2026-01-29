@@ -6,21 +6,8 @@ import { Modal, Button } from '@/components/ui';
 import { formatCurrency } from '@/utils/helpers';
 import { showError } from '@/components/common/Toast';
 
-// Load Stripe with environment-based key
-const isDevelopment = import.meta.env.MODE === 'development';
-const STRIPE_PUBLISHABLE_KEY = isDevelopment
-  ? import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY
-  : import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-
-console.log('Stripe Debug:', {
-  mode: import.meta.env.MODE,
-  isDevelopment,
-  hasTestKey: !!import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY,
-  hasProdKey: !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
-  selectedKey: STRIPE_PUBLISHABLE_KEY ? 'Present' : 'Missing'
-});
-
-const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+// Stripe promise is now created dynamically in the component
+// const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 /**
  * Stripe Payment Form
@@ -176,10 +163,35 @@ const StripePaymentForm = ({ order, batch, onSuccess, onFailure, onClose }) => {
  * Stripe Checkout Component
  * Wrapper component with Stripe Elements provider
  */
-const StripeCheckout = (props) => {
+const StripeCheckout = ({ order, batch, onSuccess, onFailure, onClose }) => {
+  // Initialize Stripe with dynamic key from order or fallback to env
+  const stripePromise = React.useMemo(() => {
+    const isDevelopment = import.meta.env.MODE === 'development';
+    const envKey = isDevelopment
+      ? import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY
+      : import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+    const key = order?.publishable_key || envKey;
+
+    if (key) return loadStripe(key);
+    return null;
+  }, [order?.publishable_key]);
+
+  if (!stripePromise) {
+    console.error('Stripe publishable key is missing');
+    showError('Payment configuration error. Please contact support.');
+    return null;
+  }
+
   return (
     <Elements stripe={stripePromise}>
-      <StripePaymentForm {...props} />
+      <StripePaymentForm
+        order={order}
+        batch={batch}
+        onSuccess={onSuccess}
+        onFailure={onFailure}
+        onClose={onClose}
+      />
     </Elements>
   );
 };

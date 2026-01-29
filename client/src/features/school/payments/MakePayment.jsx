@@ -287,7 +287,7 @@ const MakePayment = () => {
                         'image/*': ['.jpg', '.jpeg', '.png'],
                         'application/pdf': ['.pdf'],
                       }}
-                      maxSize={5 * 1024 * 1024}
+                      maxSize={20 * 1024 * 1024}
                       onFileSelect={(file) => setValue('receipt', file)}
                       error={errors.receipt?.message}
                     />

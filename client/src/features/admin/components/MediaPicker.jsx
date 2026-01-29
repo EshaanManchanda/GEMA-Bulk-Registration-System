@@ -51,9 +51,9 @@ const MediaPicker = ({
       return;
     }
 
-    const invalidFiles = files.filter(f => f.size > 10 * 1024 * 1024);
+    const invalidFiles = files.filter(f => f.size > 20 * 1024 * 1024);
     if (invalidFiles.length > 0) {
-      showError(`${invalidFiles.length} file(s) exceed 10MB limit`);
+      showError(`Some files are too large. Max size is 20MB.`);
       return;
     }
 
@@ -146,7 +146,7 @@ const MediaPicker = ({
                   hover:file:bg-blue-100"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Max 10 files, 10MB each
+                Max 10 files, 20MB each
               </p>
             </div>
 

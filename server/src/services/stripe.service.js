@@ -2,25 +2,89 @@ const Stripe = require('stripe');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler.middleware');
 const { toSmallestUnit, fromSmallestUnit } = require('../utils/helpers');
+const Settings = require('../models/Settings');
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
-// Initialize Stripe with environment-based key
-const stripeSecretKey = isDevelopment
+// Fallback environment-based keys
+const envStripeSecretKey = isDevelopment
   ? process.env.STRIPE_TEST_SECRET_KEY
   : process.env.STRIPE_SECRET_KEY;
 
-const stripe = new Stripe(stripeSecretKey);
-
-const STRIPE_WEBHOOK_SECRET = isDevelopment
+const envWebhookSecret = isDevelopment
   ? process.env.STRIPE_TEST_WEBHOOK_SECRET
   : process.env.STRIPE_WEBHOOK_SECRET;
 
 /**
  * Stripe Payment Service
  * Handles USD and other currency payments through Stripe
+ * Uses dynamic configuration from database with fallback to env vars
  */
 class StripeService {
+  constructor() {
+    this.stripeInstance = null;
+    this.lastSettingsFetch = 0;
+    this.settingsCacheDuration = 5 * 60 * 1000; // 5 minutes
+
+    // Initialize with env key if available immediately
+    if (envStripeSecretKey) {
+      this.stripeInstance = new Stripe(envStripeSecretKey);
+    }
+  }
+
+  /**
+   * Get Stripe instance with latest configuration
+   * @returns {Promise<Object>} Stripe instance
+   */
+  async getStripe() {
+    try {
+      // Check if we need to refresh settings
+      const now = Date.now();
+      if (!this.stripeInstance || (now - this.lastSettingsFetch > this.settingsCacheDuration)) {
+        await this.refreshStripeInstance();
+      }
+
+      if (!this.stripeInstance) {
+        throw new Error('Stripe is not configured. Please check payment settings.');
+      }
+
+      return this.stripeInstance;
+    } catch (error) {
+      logger.error('Failed to get Stripe instance:', error);
+      // Fallback to existing instance if available, even if stale
+      if (this.stripeInstance) return this.stripeInstance;
+      throw new AppError('Payment service configuration error', 500);
+    }
+  }
+
+  /**
+   * Refresh Stripe instance from database settings
+   */
+  async refreshStripeInstance() {
+    try {
+      const settings = await Settings.getInstance();
+      const stripeConfig = settings.payment_gateway?.stripe;
+
+      // Use DB key if enabled and present, otherwise fallback to env
+      // But only if DB is actually configured (to avoid breaking existing env setups)
+      let secretKey = envStripeSecretKey;
+
+      if (stripeConfig?.enabled && stripeConfig?.secret_key) {
+        secretKey = stripeConfig.secret_key;
+      }
+
+      if (secretKey) {
+        this.stripeInstance = new Stripe(secretKey);
+        this.lastSettingsFetch = Date.now();
+        // logger.info('Stripe instance refreshed');
+      } else {
+        logger.warn('No Stripe secret key found in settings or environment');
+      }
+    } catch (error) {
+      logger.error('Error refreshing Stripe settings:', error);
+    }
+  }
+
   /**
    * Create Stripe payment intent
    * @param {Object} intentData - { amount, currency, metadata, customer_email }
@@ -28,12 +92,13 @@ class StripeService {
    */
   async createPaymentIntent(intentData) {
     try {
+      const stripeClient = await this.getStripe();
       const { amount, currency, metadata, customer_email, description } = intentData;
 
       // Convert to smallest unit (cents for USD)
       const amountInCents = toSmallestUnit(amount, currency);
 
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await stripeClient.paymentIntents.create({
         amount: amountInCents,
         currency: currency.toLowerCase(),
         metadata: metadata || {},
@@ -68,7 +133,8 @@ class StripeService {
    */
   async getPaymentIntent(paymentIntentId) {
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const stripeClient = await this.getStripe();
+      const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId);
 
       return {
         payment_intent_id: paymentIntent.id,
@@ -95,9 +161,10 @@ class StripeService {
    */
   async confirmPaymentIntent(paymentIntentId, confirmData) {
     try {
+      const stripeClient = await this.getStripe();
       const { payment_method, return_url } = confirmData;
 
-      const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
+      const paymentIntent = await stripeClient.paymentIntents.confirm(paymentIntentId, {
         payment_method: payment_method,
         return_url: return_url || `${process.env.FRONTEND_URL}/payment/complete`
       });
@@ -123,7 +190,8 @@ class StripeService {
    */
   async cancelPaymentIntent(paymentIntentId) {
     try {
-      const paymentIntent = await stripe.paymentIntents.cancel(paymentIntentId);
+      const stripeClient = await this.getStripe();
+      const paymentIntent = await stripeClient.paymentIntents.cancel(paymentIntentId);
 
       logger.info(`Payment intent cancelled: ${paymentIntent.id}`);
 
@@ -148,6 +216,7 @@ class StripeService {
    */
   async createRefund(chargeId, amount = null, currency = 'USD', reason = null) {
     try {
+      const stripeClient = await this.getStripe();
       const refundData = {
         charge: chargeId
       };
@@ -160,7 +229,7 @@ class StripeService {
         refundData.reason = reason; // 'duplicate', 'fraudulent', 'requested_by_customer'
       }
 
-      const refund = await stripe.refunds.create(refundData);
+      const refund = await stripeClient.refunds.create(refundData);
 
       logger.info(`Refund created: ${refund.id} for charge: ${chargeId}`);
 
@@ -186,7 +255,8 @@ class StripeService {
    */
   async getRefund(refundId) {
     try {
-      const refund = await stripe.refunds.retrieve(refundId);
+      const stripeClient = await this.getStripe();
+      const refund = await stripeClient.refunds.retrieve(refundId);
 
       return {
         refund_id: refund.id,
@@ -210,9 +280,10 @@ class StripeService {
    */
   async createCustomer(customerData) {
     try {
+      const stripeClient = await this.getStripe();
       const { email, name, phone, metadata } = customerData;
 
-      const customer = await stripe.customers.create({
+      const customer = await stripeClient.customers.create({
         email: email,
         name: name,
         phone: phone,
@@ -240,7 +311,8 @@ class StripeService {
    */
   async getCustomer(customerId) {
     try {
-      const customer = await stripe.customers.retrieve(customerId);
+      const stripeClient = await this.getStripe();
+      const customer = await stripeClient.customers.retrieve(customerId);
 
       return {
         customer_id: customer.id,
@@ -263,6 +335,7 @@ class StripeService {
    */
   async createCheckoutSession(sessionData) {
     try {
+      const stripeClient = await this.getStripe();
       const {
         line_items,
         customer_email,
@@ -272,7 +345,7 @@ class StripeService {
         mode = 'payment'
       } = sessionData;
 
-      const session = await stripe.checkout.sessions.create({
+      const session = await stripeClient.checkout.sessions.create({
         line_items: line_items.map(item => ({
           price_data: {
             currency: item.currency.toLowerCase(),
@@ -314,7 +387,8 @@ class StripeService {
    */
   async getCheckoutSession(sessionId) {
     try {
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      const stripeClient = await this.getStripe();
+      const session = await stripeClient.checkout.sessions.retrieve(sessionId);
 
       return {
         session_id: session.id,
@@ -339,11 +413,19 @@ class StripeService {
    * @returns {Object|null} - Event object if valid, null otherwise
    */
   verifyWebhookSignature(payload, signature) {
+    // Note: Webhook secret is currently static/env based. 
+    // Dynamic webhook secrets would require storing them in DB too.
+    // For now, continuing to use env var for webhook secret.
     try {
-      const event = stripe.webhooks.constructEvent(
+      // NOTE: stripe.webhooks doesn't depend on the instance, but the library itself.
+      // However, for consistency we can valid from the instance, but constructEvent is static-like.
+      // The `stripe` variable here refers to the loaded module if we used `require('stripe')`, but we are inside the class.
+      // We need to use `Stripe.webhooks`.
+
+      const event = Stripe.webhooks.constructEvent(
         payload,
         signature,
-        STRIPE_WEBHOOK_SECRET
+        envWebhookSecret
       );
 
       logger.info(`Webhook signature verified: ${event.type}`);
@@ -362,7 +444,8 @@ class StripeService {
    */
   async listCustomerCharges(customerId, limit = 10) {
     try {
-      const charges = await stripe.charges.list({
+      const stripeClient = await this.getStripe();
+      const charges = await stripeClient.charges.list({
         customer: customerId,
         limit: limit
       });
@@ -389,7 +472,8 @@ class StripeService {
    */
   async getCharge(chargeId) {
     try {
-      const charge = await stripe.charges.retrieve(chargeId);
+      const stripeClient = await this.getStripe();
+      const charge = await stripeClient.charges.retrieve(chargeId);
 
       return {
         charge_id: charge.id,

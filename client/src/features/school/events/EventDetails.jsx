@@ -224,66 +224,155 @@ const EventDetails = () => {
               </Card.Header>
               <Card.Body>
                 <div className="space-y-4">
-                  {/* Date */}
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Event Date</p>
-                    <div className="flex items-center gap-2 text-gray-900">
-                      <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="font-medium">{formatDate(event.event_date)}</span>
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  {event.venue && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Venue</p>
-                      <div className="flex items-start gap-2 text-gray-900">
-                        <svg className="w-5 h-5 text-primary-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span className="font-medium">{event.venue}</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Multiple Dates Template */}
+                    {event.schedule_type === 'multiple_dates' && event.schedule?.event_dates?.map((dateItem, index) => (
+                      <div key={index} className="col-span-2 sm:col-span-1">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                          Date {dateItem.label || index + 1}
+                        </p>
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {formatDate(dateItem.date)}
+                        </p>
                       </div>
-                    </div>
-                  )}
+                    ))}
 
-                  {/* Fee */}
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Registration Fee</p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {formatCurrency(
-                        schoolCurrency === 'INR' ? event.base_fee_inr : event.base_fee_usd,
-                        schoolCurrency
-                      )}
-                    </p>
+                    {/* Single Date Template */}
+                    {event.schedule_type === 'single_date' && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Event Date</p>
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {formatDate(event.schedule?.event_date || event.event_start_date)}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Date Range Template (Default) */}
+                    {(event.schedule_type === 'date_range' || !event.schedule_type) && (
+                      <>
+                        <div className="col-span-2 sm:col-span-1">
+                          <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Start Date</p>
+                          <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(event.schedule?.date_range?.start || event.event_start_date)}
+                          </p>
+                        </div>
+                        <div className="col-span-2 sm:col-span-1">
+                          <p className="text-xs text-gray-500 uppercase font-semibold mb-1">End Date</p>
+                          <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(event.schedule?.date_range?.end || event.event_end_date)}
+                          </p>
+                        </div>
+                      </>
+                    )}
+
+                    {event.registration_deadline && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Registration Deadline</p>
+                        <p className="text-sm font-medium text-red-600 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {formatDate(event.registration_deadline)}
+                        </p>
+                      </div>
+                    )}
+
+                    {event.category && (
+                      <div className="col-span-2 border-t pt-4 mt-2">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Category</p>
+                        <p className="text-sm font-medium text-gray-900 capitalize">{event.category}</p>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Capacity */}
-                  {event.capacity && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Capacity</p>
-                      <p className="font-medium text-gray-900">{event.capacity} students</p>
-                    </div>
-                  )}
-
-                  {/* Registration Period */}
-                  {event.registration_start && event.registration_end && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Registration Period</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {formatDate(event.registration_start)}
-                      </p>
-                      <p className="text-sm text-gray-600">to</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {formatDate(event.registration_end)}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </Card.Body>
             </Card>
+
+            {/* Downloads & Resources */}
+            {(event.notice_url || (event.brochures && event.brochures.length > 0) || (event.posters && event.posters.length > 0)) && (
+              <Card>
+                <Card.Header>
+                  <Card.Title>Downloads</Card.Title>
+                </Card.Header>
+                <Card.Body>
+                  <div className="space-y-4">
+                    {/* Official Notice */}
+                    {event.notice_url && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Official Notice</p>
+                        <a
+                          href={event.notice_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                          </svg>
+                          <span className="text-sm font-medium truncate">Download Notice</span>
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Brochures */}
+                    {event.brochures && event.brochures.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Brochures</p>
+                        <div className="space-y-2">
+                          {event.brochures.map((url, idx) => (
+                            <a
+                              key={idx}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+                            >
+                              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-sm font-medium truncate">Brochure {event.brochures.length > 1 ? idx + 1 : ''}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Posters */}
+                    {event.posters && event.posters.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Posters</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {event.posters.map((url, idx) => (
+                            <a
+                              key={idx}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block relative aspect-[2/3] rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow"
+                            >
+                              <img src={url} alt={`Poster ${idx + 1}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card.Body>
+              </Card>
+            )}
 
             {/* Registration Actions */}
             <Card>
@@ -325,63 +414,63 @@ const EventDetails = () => {
 
             {/* Certificate Download Section */}
             <Card>
-                <Card.Header>
-                  <Card.Title>Download Certificate</Card.Title>
-                  <Card.Description>Enter your email to get your certificate</Card.Description>
-                </Card.Header>
-                <Card.Body>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Student Email
-                      </label>
-                      <input
-                        type="email"
-                        value={certificateEmail}
-                        onChange={(e) => setCertificateEmail(e.target.value)}
-                        placeholder="student@example.com"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    <Button
-                      variant="primary"
-                      fullWidth
-                      onClick={handleFetchCertificate}
-                      loading={fetchCertificate.isPending}
-                      disabled={!certificateEmail}
-                    >
-                      Get Certificate
-                    </Button>
-
-                    {certificateResult && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm font-medium text-green-900 mb-2">
-                          Certificate Ready!
-                        </p>
-                        <a
-                          href={certificateResult.download_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-800 font-medium"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Download Certificate (PDF)
-                        </a>
-                      </div>
-                    )}
-
-                    <div className="text-xs text-gray-500 p-3 bg-blue-50 border border-blue-200 rounded">
-                      <p className="font-medium text-blue-900 mb-1">Note:</p>
-                      <p className="text-blue-800">
-                        Enter the email address you used during registration to download your certificate.
-                      </p>
-                    </div>
+              <Card.Header>
+                <Card.Title>Download Certificate</Card.Title>
+                <Card.Description>Enter your email to get your certificate</Card.Description>
+              </Card.Header>
+              <Card.Body>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Student Email
+                    </label>
+                    <input
+                      type="email"
+                      value={certificateEmail}
+                      onChange={(e) => setCertificateEmail(e.target.value)}
+                      placeholder="student@example.com"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
                   </div>
-                </Card.Body>
-              </Card>
+
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    onClick={handleFetchCertificate}
+                    loading={fetchCertificate.isPending}
+                    disabled={!certificateEmail}
+                  >
+                    Get Certificate
+                  </Button>
+
+                  {certificateResult && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm font-medium text-green-900 mb-2">
+                        Certificate Ready!
+                      </p>
+                      <a
+                        href={certificateResult.download_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-800 font-medium"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download Certificate (PDF)
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500 p-3 bg-blue-50 border border-blue-200 rounded">
+                    <p className="font-medium text-blue-900 mb-1">Note:</p>
+                    <p className="text-blue-800">
+                      Enter the email address you used during registration to download your certificate.
+                    </p>
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
           </div>
         </div>
       </div>

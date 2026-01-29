@@ -40,7 +40,9 @@ const EmptyState = ({
       )}
     >
       {/* Icon */}
-      <div className="mb-4">{icon || defaultIcon}</div>
+      <div className="mb-4">
+        {icon && typeof icon === 'function' ? React.createElement(icon, { className: "w-16 h-16 text-gray-300" }) : (icon || defaultIcon)}
+      </div>
 
       {/* Message */}
       <h3 className="text-lg font-semibold text-gray-900 mb-2">{message}</h3>

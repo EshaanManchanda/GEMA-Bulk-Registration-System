@@ -30,7 +30,12 @@ exports.createEvent = asyncHandler(async (req, res, next) => {
     max_participants,
     status,
     banner_url,
-    form_schema
+    form_schema,
+    schedule_type,
+    schedule,
+    posters,
+    brochures,
+    notice_url
   } = req.body;
 
   // Check if event slug already exists
@@ -58,7 +63,12 @@ exports.createEvent = asyncHandler(async (req, res, next) => {
     status,
     banner_image_url: banner_url,
     form_schema: form_schema || [],
-    created_by: req.user.id
+    created_by: req.user.id,
+    schedule_type,
+    schedule,
+    posters,
+    brochures,
+    notice_url
   });
 
   logger.info(`Event created: ${event.event_slug} by admin: ${req.user.id}`);
@@ -137,8 +147,10 @@ exports.getAllEvents = asyncHandler(async (req, res, next) => {
 
       return {
         ...event.toObject(),
-        registration_count: registrationCount,
-        total_revenue: revenueData[0]?.total || 0
+        stats: {
+          total_registrations: registrationCount,
+          total_revenue: revenueData[0]?.total || 0
+        }
       };
     })
   );
@@ -243,7 +255,12 @@ exports.updateEvent = asyncHandler(async (req, res, next) => {
     is_featured,
     rules_document_url,
     certificate_config_india,
-    certificate_config_international
+    certificate_config_international,
+    schedule_type,
+    schedule,
+    posters,
+    brochures,
+    notice_url
   } = req.body;
 
   const event = await Event.findById(eventId);
@@ -277,6 +294,11 @@ exports.updateEvent = asyncHandler(async (req, res, next) => {
   if (rules_document_url !== undefined) event.rules_document_url = rules_document_url;
   if (certificate_config_india !== undefined) event.certificate_config_india = certificate_config_india;
   if (certificate_config_international !== undefined) event.certificate_config_international = certificate_config_international;
+  if (schedule_type) event.schedule_type = schedule_type;
+  if (schedule) event.schedule = schedule;
+  if (posters) event.posters = posters;
+  if (brochures) event.brochures = brochures;
+  if (notice_url !== undefined) event.notice_url = notice_url;
 
   await event.save();
 

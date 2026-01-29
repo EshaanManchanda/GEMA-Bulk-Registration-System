@@ -59,9 +59,9 @@ const MediaLibrary = () => {
       return;
     }
 
-    const invalidFiles = files.filter(f => f.size > 10 * 1024 * 1024);
+    const invalidFiles = files.filter(f => f.size > 20 * 1024 * 1024);
     if (invalidFiles.length > 0) {
-      showError(`${invalidFiles.length} file(s) exceed 10MB limit`);
+      showError(`Some files are too large. Max size is 20MB.`);
       return;
     }
 
@@ -306,11 +306,10 @@ const MediaLibrary = () => {
             {media.map((item) => (
               <div
                 key={item._id}
-                className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                  selectedMedia.has(item._id)
+                className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${selectedMedia.has(item._id)
                     ? 'border-blue-500 ring-2 ring-blue-200'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 {/* Selection Checkbox */}
                 <div className="absolute top-2 left-2 z-10">

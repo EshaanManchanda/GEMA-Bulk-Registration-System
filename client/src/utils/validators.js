@@ -230,9 +230,9 @@ export const batchUploadSchema = yup.object({
       ];
       return allowedTypes.includes(value.type);
     })
-    .test('fileSize', 'File size must be less than 10MB', (value) => {
+    .test('fileSize', 'File size must be less than 20MB', (value) => {
       if (!value) return false;
-      return value.size <= 10 * 1024 * 1024;
+      return value.size <= 20 * 1024 * 1024;
     }),
 });
 

@@ -30,6 +30,15 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
   const [bannerUrl, setBannerUrl] = useState(defaultValues?.banner_url || null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
 
+  // Media State
+  const [posters, setPosters] = useState(defaultValues?.posters || []);
+  const [brochures, setBrochures] = useState(defaultValues?.brochures || []);
+  const [noticeUrl, setNoticeUrl] = useState(defaultValues?.notice_url || null);
+  const [mediaPickerConfig, setMediaPickerConfig] = useState({
+    type: 'banner', // banner, poster, brochure, notice
+    accept: ['image']
+  });
+
   const steps = [
     { label: 'Basic Info', description: 'Event details' },
     { label: 'Dates & Pricing', description: 'Schedule & fees' },
@@ -69,39 +78,82 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
 
     // Step 2: Dates & Pricing - Accept strings from HTML date inputs
     schedule_type: yup.string().oneOf(['single_date', 'date_range', 'multiple_dates']).default('date_range'),
-    event_start_date: yup.string().required('Start date is required'),
+    event_start_date: yup
+      .string()
+      .test('required-for-type', 'Start date is required', function (value) {
+        const { schedule_type } = this.parent;
+        // Not required for multiple_dates (derived from event_dates)
+        if (schedule_type === 'multiple_dates') return true;
+        return !!value;
+      }),
     event_end_date: yup
       .string()
-      .required('End date is required')
-      .test('is-greater', 'End date must be after start date', function (value) {
+      .test('required-for-range', 'End date is required for date range', function (value) {
+        const { schedule_type } = this.parent;
+        // Only required for date_range
+        if (schedule_type !== 'date_range') return true;
+        return !!value;
+      })
+      .test('is-after-start', 'End date must be after start date', function (value) {
         const { event_start_date, schedule_type } = this.parent;
-        if (schedule_type === 'single_date') return true;
+        if (schedule_type !== 'date_range') return true;
         if (!value || !event_start_date) return true;
-        return new Date(value) > new Date(event_start_date);
+        const endDate = value.substring(0, 10);
+        const startDate = event_start_date.substring(0, 10);
+        return endDate > startDate;
       }),
     registration_deadline: yup
       .string()
       .required('Registration deadline is required')
       .test('is-before', 'Deadline must be before/on event start', function (value) {
-        const { event_start_date } = this.parent;
-        if (!value || !event_start_date) return true;
-        return new Date(value) <= new Date(event_start_date);
+        const { event_start_date, schedule_type, event_dates } = this.parent;
+        // For multiple_dates, derive start date from event_dates array
+        let effectiveStartDate = event_start_date;
+        if (schedule_type === 'multiple_dates' && event_dates?.length > 0) {
+          const validDates = event_dates.filter(d => d.date).map(d => d.date);
+          if (validDates.length > 0) {
+            effectiveStartDate = [...validDates].sort()[0];
+          }
+        }
+        if (!value || !effectiveStartDate) return true;
+        // Compare date strings directly (YYYY-MM-DD format) to avoid timezone issues
+        const deadlineDate = value.substring(0, 10);
+        const startDate = effectiveStartDate.substring(0, 10);
+        return deadlineDate <= startDate;
       }),
-    registration_start_date: yup.string().nullable(),
+    registration_start_date: yup
+      .string()
+      .nullable()
+      .test('is-before-deadline', 'Registration start must be before deadline', function (value) {
+        const { registration_deadline } = this.parent;
+        if (!value || !registration_deadline) return true;
+        const startDate = value.substring(0, 10);
+        const deadlineDate = registration_deadline.substring(0, 10);
+        return startDate <= deadlineDate;
+      }),
     result_announced_date: yup
       .string()
       .nullable()
       .test('is-after-event', 'Result date must be on or after event end', function (value) {
-        const { event_end_date } = this.parent;
-        if (!value || !event_end_date) return true;
-        return new Date(value) >= new Date(event_end_date);
+        const { event_end_date, event_start_date, schedule_type } = this.parent;
+        // Use event_end_date for date_range, event_start_date for single_date
+        const eventDate = schedule_type === 'date_range' ? event_end_date : event_start_date;
+        if (!value || !eventDate) return true;
+        const resultDate = value.substring(0, 10);
+        const endDate = eventDate.substring(0, 10);
+        return resultDate >= endDate;
       }),
     event_dates: yup.array().of(
       yup.object({
         label: yup.string(),
         date: yup.string()
       })
-    ).default([]),
+    ).test('min-dates', 'At least one event date is required', function (value) {
+      const { schedule_type } = this.parent;
+      if (schedule_type !== 'multiple_dates') return true;
+      const validDates = (value || []).filter(d => d.date);
+      return validDates.length > 0;
+    }).default([]),
     base_fee_inr: yup.number().transform((value, orig) => orig === '' ? undefined : value).min(0, 'Must be positive').required('INR fee is required'),
     base_fee_usd: yup.number().transform((value, orig) => orig === '' ? undefined : value).min(0, 'Must be positive').required('USD fee is required'),
     max_participants: yup.number().transform((value, orig) => orig === '' ? null : value).min(1, 'Must be at least 1').nullable().optional(),
@@ -184,6 +236,8 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
   useEffect(() => {
     if (defaultValues && mode === 'edit') {
       methods.reset(defaultValues);
+      // Clear validation errors after reset
+      setTimeout(() => methods.clearErrors(), 0);
     }
   }, [defaultValues, mode, methods]);
 
@@ -193,7 +247,39 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
       setBannerPreview(defaultValues.banner_url);
       setBannerUrl(defaultValues.banner_url);
     }
+    if (defaultValues && mode === 'edit') {
+      setPosters(defaultValues.posters || []);
+      setBrochures(defaultValues.brochures || []);
+      setNoticeUrl(defaultValues.notice_url || null);
+    }
   }, [defaultValues, mode]);
+
+  // Sync event_dates to event_start_date/event_end_date for multiple_dates mode
+  const scheduleType = watch('schedule_type');
+  const eventDates = watch('event_dates');
+
+  useEffect(() => {
+    if (scheduleType === 'multiple_dates' && eventDates?.length > 0) {
+      const validDates = eventDates.filter(d => d.date).map(d => d.date);
+      if (validDates.length > 0) {
+        const sorted = [...validDates].sort();
+        setValue('event_start_date', sorted[0], { shouldValidate: false });
+        setValue('event_end_date', sorted[sorted.length - 1], { shouldValidate: false });
+      }
+    }
+  }, [scheduleType, eventDates, setValue]);
+
+  // Sync category with event_type (for legacy compatibility)
+  const eventType = watch('event_type');
+  useEffect(() => {
+    if (eventType) {
+      // If event_type matches one of the legacy categories, use it
+      // Otherwise default to 'other' or a mapped value
+      const validCategories = ['olympiad', 'championship', 'competition', 'workshop', 'other'];
+      const newCategory = validCategories.includes(eventType) ? eventType : 'other';
+      setValue('category', newCategory, { shouldValidate: true });
+    }
+  }, [eventType, setValue]);
 
   const handleNext = async () => {
     let isValid = false;
@@ -210,13 +296,18 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
         'description',
       ]);
     } else if (currentStep === 1) {
-      isValid = await trigger([
-        'event_start_date',
-        'event_end_date',
-        'registration_deadline',
-        'base_fee_inr',
-        'base_fee_usd',
-      ]);
+      const scheduleType = watch('schedule_type');
+      const fieldsToValidate = ['registration_deadline', 'registration_start_date', 'base_fee_inr', 'base_fee_usd'];
+
+      if (scheduleType === 'single_date') {
+        fieldsToValidate.push('event_start_date');
+      } else if (scheduleType === 'date_range') {
+        fieldsToValidate.push('event_start_date', 'event_end_date');
+      } else if (scheduleType === 'multiple_dates') {
+        fieldsToValidate.push('event_dates');
+      }
+
+      isValid = await trigger(fieldsToValidate);
     } else if (currentStep === 2) {
       isValid = await trigger(['form_schema']);
       const formSchema = watch('form_schema');
@@ -242,8 +333,8 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
   const handleBannerUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        showError('Banner file must be less than 5MB');
+      if (file.size > 20 * 1024 * 1024) {
+        showError('Banner file must be less than 20MB');
         return;
       }
       setBannerFile(file);
@@ -319,6 +410,8 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
 
       if (data.schedule_type === 'single_date') {
         schedule.event_date = data.event_start_date;
+        // Ensure event_end_date matches start date or is null to pass backend validation
+        data.event_end_date = data.event_start_date;
       } else if (data.schedule_type === 'date_range') {
         schedule.date_range = {
           start: data.event_start_date,
@@ -339,7 +432,11 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
       payload = {
         ...data,
         form_schema: processedFormSchema,
+        form_schema: processedFormSchema,
         banner_url: bannerUrlToUse,
+        posters,
+        brochures,
+        notice_url: noticeUrl,
         schedule,
       };
 
@@ -473,23 +570,6 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                     {errors.event_slug && (
                       <p className="text-sm text-red-600 mt-1">{errors.event_slug.message}</p>
                     )}
-                  </div>
-
-                  {/* Category (Legacy) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      {...methods.register('category')}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    >
-                      {CATEGORIES.map((cat) => (
-                        <option key={cat.value} value={cat.value}>
-                          {cat.icon} {cat.label}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
                   {/* Event Type */}
@@ -754,7 +834,10 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                       <p className="text-xs text-gray-500 mt-1">
                         Add multiple event dates with optional labels
                       </p>
-                      {/* Hidden fields to satisfy validation - use first date as start, last as end */}
+                      {errors.event_dates && (
+                        <p className="text-sm text-red-600 mt-1">{errors.event_dates.message}</p>
+                      )}
+                      {/* Hidden fields for start/end dates (auto-populated from event_dates) */}
                       <input type="hidden" {...methods.register('event_start_date')} />
                       <input type="hidden" {...methods.register('event_end_date')} />
                     </div>
@@ -771,6 +854,11 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                         {...methods.register('registration_start_date')}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
+                      {errors.registration_start_date && (
+                        <p className="text-sm text-red-600 mt-1">
+                          {errors.registration_start_date.message}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -898,7 +986,10 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                         <Button
                           type="button"
                           variant="secondary"
-                          onClick={() => setShowMediaPicker(true)}
+                          onClick={() => {
+                            setMediaPickerConfig({ type: 'banner', accept: ['image'] });
+                            setShowMediaPicker(true);
+                          }}
                           className="w-full"
                         >
                           {bannerUrl ? 'Change Banner' : 'Select from Media Library'}
@@ -930,6 +1021,105 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                           </button>
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Posters Management */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Posters</h3>
+                    <div className="space-y-4">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setMediaPickerConfig({ type: 'poster', accept: ['image'] });
+                          setShowMediaPicker(true);
+                        }}
+                      >
+                        + Add Poster
+                      </Button>
+
+                      {posters.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {posters.map((url, idx) => (
+                            <div key={idx} className="relative group">
+                              <img src={url} alt={`Poster ${idx + 1}`} className="h-32 w-full object-cover rounded-lg border" />
+                              <button
+                                type="button"
+                                onClick={() => setPosters(posters.filter((_, i) => i !== idx))}
+                                className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Brochures Management */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Brochures</h3>
+                    <div className="space-y-4">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setMediaPickerConfig({ type: 'brochure', accept: ['document'] });
+                          setShowMediaPicker(true);
+                        }}
+                      >
+                        + Add Brochure (PDF/Doc)
+                      </Button>
+
+                      {brochures.length > 0 && (
+                        <ul className="space-y-2">
+                          {brochures.map((url, idx) => (
+                            <li key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 truncate hover:underline text-sm">{url.split('/').pop()}</a>
+                              <button
+                                type="button"
+                                onClick={() => setBrochures(brochures.filter((_, i) => i !== idx))}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Notice Management */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Official Notice</h3>
+                    <div className="space-y-4">
+                      <div className="flex gap-4 items-center">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            setMediaPickerConfig({ type: 'notice', accept: ['document'] });
+                            setShowMediaPicker(true);
+                          }}
+                        >
+                          {noticeUrl ? 'Change Notice File' : 'Select Notice File'}
+                        </Button>
+                        {noticeUrl && (
+                          <div className="flex items-center gap-2">
+                            <a href={noticeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">View Current Notice</a>
+                            <button
+                              type="button"
+                              onClick={() => setNoticeUrl(null)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1362,12 +1552,23 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
           isOpen={showMediaPicker}
           onClose={() => setShowMediaPicker(false)}
           onSelect={(media) => {
-            setBannerUrl(media.file_url);
-            setBannerPreview(media.file_url);
+            if (mediaPickerConfig.type === 'banner') {
+              setBannerUrl(media.file_url);
+              setBannerPreview(media.file_url);
+            } else if (mediaPickerConfig.type === 'poster') {
+              setPosters([...posters, media.file_url]);
+            } else if (mediaPickerConfig.type === 'brochure') {
+              setBrochures([...brochures, media.file_url]);
+            } else if (mediaPickerConfig.type === 'notice') {
+              setNoticeUrl(media.file_url);
+            }
           }}
-          selectedUrl={bannerUrl}
+          selectedUrl={
+            mediaPickerConfig.type === 'banner' ? bannerUrl :
+              mediaPickerConfig.type === 'notice' ? noticeUrl : null
+          }
           allowUpload={true}
-          acceptTypes={['image']}
+          acceptTypes={mediaPickerConfig.accept}
         />
       </FormProvider>
     </AdminLayout>

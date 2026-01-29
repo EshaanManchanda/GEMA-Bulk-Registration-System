@@ -159,11 +159,17 @@ const uploadImages = multer({
  */
 const uploadMediaLibrary = multer({
   storage: memoryStorage,
-  fileFilter: imageFileFilter,
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.image.includes(file.mimetype) || ALLOWED_MIME_TYPES.pdf.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new AppError('Invalid file type. Only images and PDFs are allowed.', 400), false);
+    }
+  },
   limits: {
-    fileSize: FILE_SIZE_LIMITS.image
+    fileSize: FILE_SIZE_LIMITS.image // Using the larger 20MB limit
   }
-}).array('files', 10); // Max 10 images for media library
+}).array('files', 10);
 
 /**
  * PDF file upload configuration

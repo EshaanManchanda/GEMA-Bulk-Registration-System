@@ -308,7 +308,9 @@ export const useVerifyPayment = () => {
 
   return useMutation({
     mutationFn: async ({ paymentId, notes }) => {
-      const response = await apiClient.put(ENDPOINTS.ADMIN.VERIFY_PAYMENT(paymentId), { notes });
+      const response = await apiClient.put(ENDPOINTS.ADMIN.VERIFY_PAYMENT(paymentId), {
+        verification_notes: notes
+      });
       return response.data;
     },
     onSuccess: () => {
@@ -327,7 +329,9 @@ export const useRejectPayment = () => {
 
   return useMutation({
     mutationFn: async ({ paymentId, reason }) => {
-      const response = await apiClient.put(ENDPOINTS.ADMIN.REJECT_PAYMENT(paymentId), { reason });
+      const response = await apiClient.put(ENDPOINTS.ADMIN.REJECT_PAYMENT(paymentId), {
+        rejection_reason: reason
+      });
       return response.data;
     },
     onSuccess: () => {

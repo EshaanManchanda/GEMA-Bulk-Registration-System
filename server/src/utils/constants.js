@@ -132,11 +132,11 @@ module.exports = {
 
   // File Size Limits (in bytes)
   FILE_SIZE_LIMITS: {
-    csv: 5 * 1024 * 1024, // 5MB
-    excel: 10 * 1024 * 1024, // 10MB
-    spreadsheet: 10 * 1024 * 1024, // 10MB
-    image: 10 * 1024 * 1024,  // 10MB (updated for media library)
-    pdf: 5 * 1024 * 1024     // 5MB
+    csv: 20 * 1024 * 1024, // 20MB
+    excel: 20 * 1024 * 1024, // 20MB
+    spreadsheet: 20 * 1024 * 1024, // 20MB
+    image: 20 * 1024 * 1024,  // 20MB
+    pdf: 20 * 1024 * 1024     // 20MB
   },
 
   // Cloudinary Folders

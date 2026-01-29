@@ -171,9 +171,9 @@ const eventSchema = new mongoose.Schema({
     required: [true, 'Event end date is required'],
     validate: {
       validator: function (v) {
-        return v > this.event_start_date;
+        return v >= this.event_start_date;
       },
-      message: 'Event end date must be after start date'
+      message: 'Event end date must be after or on start date'
     }
   },
   registration_start_date: {
@@ -221,6 +221,11 @@ const eventSchema = new mongoose.Schema({
     default: 'olympiad',
     index: true
   },
+  schedule_type: {
+    type: String,
+    enum: ['single_date', 'date_range', 'multiple_dates'],
+    default: 'date_range'
+  },
   schedule: {
     registration_start: { type: Date },
     registration_deadline: { type: Date },
@@ -249,6 +254,18 @@ const eventSchema = new mongoose.Schema({
     trim: true
   },
   rules_document_url: {
+    type: String,
+    trim: true
+  },
+  posters: {
+    type: [String],
+    default: []
+  },
+  brochures: {
+    type: [String],
+    default: []
+  },
+  notice_url: {
     type: String,
     trim: true
   },

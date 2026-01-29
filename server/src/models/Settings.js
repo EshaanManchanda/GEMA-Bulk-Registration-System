@@ -34,6 +34,21 @@ const settingsSchema = new mongoose.Schema({
   updated_at: {
     type: Date,
     default: Date.now
+  },
+  payment_gateway: {
+    stripe: {
+      publishable_key: { type: String, trim: true },
+      secret_key: { type: String, trim: true },
+      enabled: { type: Boolean, default: true }
+    },
+    razorpay: {
+      key_id: { type: String, trim: true },
+      key_secret: { type: String, trim: true },
+      enabled: { type: Boolean, default: false }
+    },
+    offline: {
+      enabled: { type: Boolean, default: true }
+    }
   }
 }, {
   timestamps: {
@@ -51,7 +66,7 @@ const settingsSchema = new mongoose.Schema({
  * Creates settings if doesn't exist
  * @returns {Promise<Settings>} - Settings document
  */
-settingsSchema.statics.getInstance = async function() {
+settingsSchema.statics.getInstance = async function () {
   let settings = await this.findOne();
 
   if (!settings) {

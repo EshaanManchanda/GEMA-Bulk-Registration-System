@@ -36,15 +36,21 @@ const EditEvent = () => {
   }
 
   // Prepare default values for the form
-  const defaultValues = {
+  const defaultValues = React.useMemo(() => ({
     title: event.title || '',
     event_slug: event.event_slug || '',
     category: event.category || 'olympiad',
+    event_type: event.event_type || 'olympiad',
     grade_levels: event.grade_levels || [],
     short_description: event.short_description || '',
     description: event.description || '',
+    schedule_type: event.schedule_type || 'date_range',
     event_start_date: event.event_start_date?.split('T')[0] || '',
     event_end_date: event.event_end_date?.split('T')[0] || '',
+    event_dates: (event.schedule?.event_dates || []).map(d => ({
+      ...d,
+      date: d.date ? d.date.split('T')[0] : ''
+    })),
     registration_start_date: event.registration_start_date?.split('T')[0] || '',
     registration_deadline: event.registration_deadline?.split('T')[0] || '',
     result_announced_date: event.result_announced_date?.split('T')[0] || '',
@@ -55,6 +61,9 @@ const EditEvent = () => {
     bulk_discount_rules: event.bulk_discount_rules || [],
     status: event.status || 'draft',
     banner_url: event.banner_image_url || null,
+    posters: event.posters || [],
+    brochures: event.brochures || [],
+    notice_url: event.notice_url || null,
     is_featured: event.is_featured || false,
     rules_document_url: event.rules_document_url || '',
     // Certificate Configuration
@@ -78,7 +87,7 @@ const EditEvent = () => {
       template_id: '',
       auto_generate: false,
     },
-  };
+  }), [event]);
 
   return <CreateEvent mode="edit" eventId={eventId} defaultValues={defaultValues} />;
 };

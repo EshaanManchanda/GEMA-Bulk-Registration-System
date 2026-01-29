@@ -13,7 +13,7 @@ const registrationSchema = new mongoose.Schema({
     uppercase: true,
     trim: true,
     index: true,
-    default: function() {
+    default: function () {
       const { generateRegistrationId } = require('../utils/helpers');
       return generateRegistrationId();
     }
@@ -50,6 +50,20 @@ const registrationSchema = new mongoose.Schema({
   section: {
     type: String,
     trim: true
+  },
+  student_email: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    validate: {
+      validator: function (v) {
+        return !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
+      },
+      message: 'Please enter a valid email address'
+    }
+  },
+  exam_date: {
+    type: Date
   },
   dynamic_data: {
     type: Map,
@@ -128,14 +142,14 @@ registrationSchema.index({ grade: 1 });
 /**
  * Check if registration is confirmed (payment completed)
  */
-registrationSchema.virtual('is_confirmed').get(function() {
+registrationSchema.virtual('is_confirmed').get(function () {
   return this.status === REGISTRATION_STATUS.CONFIRMED;
 });
 
 /**
  * Check if student attended
  */
-registrationSchema.virtual('did_attend').get(function() {
+registrationSchema.virtual('did_attend').get(function () {
   return this.status === REGISTRATION_STATUS.ATTENDED || this.attendance_marked;
 });
 
@@ -144,7 +158,7 @@ registrationSchema.virtual('did_attend').get(function() {
 // ===============================================
 
 // Pre-save: Generate registration ID if not exists
-registrationSchema.pre('save', function(next) {
+registrationSchema.pre('save', function (next) {
   if (!this.registration_id) {
     const { generateRegistrationId } = require('../utils/helpers');
     this.registration_id = generateRegistrationId();
@@ -153,7 +167,7 @@ registrationSchema.pre('save', function(next) {
 });
 
 // Pre-save: Convert dynamic_data object to Map if needed
-registrationSchema.pre('save', function(next) {
+registrationSchema.pre('save', function (next) {
   if (this.dynamic_data && !(this.dynamic_data instanceof Map)) {
     this.dynamic_data = new Map(Object.entries(this.dynamic_data));
   }
@@ -169,7 +183,7 @@ registrationSchema.pre('save', function(next) {
  * @param {string} fieldId - Field ID
  * @returns {*} - Field value
  */
-registrationSchema.methods.getFieldValue = function(fieldId) {
+registrationSchema.methods.getFieldValue = function (fieldId) {
   return this.dynamic_data.get(fieldId);
 };
 
@@ -178,7 +192,7 @@ registrationSchema.methods.getFieldValue = function(fieldId) {
  * @param {string} fieldId - Field ID
  * @param {*} value - Field value
  */
-registrationSchema.methods.setFieldValue = function(fieldId, value) {
+registrationSchema.methods.setFieldValue = function (fieldId, value) {
   if (!this.dynamic_data) {
     this.dynamic_data = new Map();
   }
@@ -189,7 +203,7 @@ registrationSchema.methods.setFieldValue = function(fieldId, value) {
  * Get all dynamic data as object
  * @returns {Object} - Dynamic data object
  */
-registrationSchema.methods.getDynamicDataObject = function() {
+registrationSchema.methods.getDynamicDataObject = function () {
   if (!this.dynamic_data) return {};
   return Object.fromEntries(this.dynamic_data);
 };
@@ -197,7 +211,7 @@ registrationSchema.methods.getDynamicDataObject = function() {
 /**
  * Confirm registration (after payment)
  */
-registrationSchema.methods.confirm = async function() {
+registrationSchema.methods.confirm = async function () {
   this.status = REGISTRATION_STATUS.CONFIRMED;
   await this.save();
 };
@@ -205,7 +219,7 @@ registrationSchema.methods.confirm = async function() {
 /**
  * Cancel registration
  */
-registrationSchema.methods.cancel = async function() {
+registrationSchema.methods.cancel = async function () {
   this.status = REGISTRATION_STATUS.CANCELLED;
   await this.save();
 };
@@ -213,7 +227,7 @@ registrationSchema.methods.cancel = async function() {
 /**
  * Mark as attended
  */
-registrationSchema.methods.markAttendance = async function() {
+registrationSchema.methods.markAttendance = async function () {
   this.status = REGISTRATION_STATUS.ATTENDED;
   this.attendance_marked = true;
   this.attended_at = new Date();
@@ -224,7 +238,7 @@ registrationSchema.methods.markAttendance = async function() {
  * Set result
  * @param {Object} resultData - Result data
  */
-registrationSchema.methods.setResult = async function(resultData) {
+registrationSchema.methods.setResult = async function (resultData) {
   this.result = {
     score: resultData.score,
     rank: resultData.rank,
@@ -238,7 +252,7 @@ registrationSchema.methods.setResult = async function(resultData) {
  * Set certificate
  * @param {string} certificateUrl - Certificate PDF URL
  */
-registrationSchema.methods.setCertificate = async function(certificateUrl) {
+registrationSchema.methods.setCertificate = async function (certificateUrl) {
   this.certificate_url = certificateUrl;
   this.certificate_generated_at = new Date();
   await this.save();
@@ -248,7 +262,7 @@ registrationSchema.methods.setCertificate = async function(certificateUrl) {
  * Get full student data (including dynamic fields)
  * @returns {Object} - Complete student data
  */
-registrationSchema.methods.getCompleteData = function() {
+registrationSchema.methods.getCompleteData = function () {
   return {
     registration_id: this.registration_id,
     student_name: this.student_name,
@@ -268,7 +282,7 @@ registrationSchema.methods.getCompleteData = function() {
  * @param {string} batchId - Batch ID
  * @returns {Promise<Registration[]>} - Array of registrations
  */
-registrationSchema.statics.findByBatch = function(batchId) {
+registrationSchema.statics.findByBatch = function (batchId) {
   return this.find({ batch_id: batchId }).sort({ row_number: 1 });
 };
 
@@ -278,7 +292,7 @@ registrationSchema.statics.findByBatch = function(batchId) {
  * @param {Object} filters - Optional filters
  * @returns {Promise<Registration[]>} - Array of registrations
  */
-registrationSchema.statics.findByEvent = function(eventId, filters = {}) {
+registrationSchema.statics.findByEvent = function (eventId, filters = {}) {
   const query = { event_id: eventId };
 
   if (filters.status) {
@@ -301,7 +315,7 @@ registrationSchema.statics.findByEvent = function(eventId, filters = {}) {
  * @param {string} schoolId - School ID
  * @returns {Promise<Registration[]>} - Array of registrations
  */
-registrationSchema.statics.findBySchool = function(schoolId) {
+registrationSchema.statics.findBySchool = function (schoolId) {
   return this.find({ school_id: schoolId })
     .populate('event_id', 'title event_slug')
     .sort({ created_at: -1 });
@@ -313,7 +327,7 @@ registrationSchema.statics.findBySchool = function(schoolId) {
  * @param {Object} filters - Optional filters
  * @returns {Promise<Registration[]>} - Array of registrations
  */
-registrationSchema.statics.searchByName = function(searchTerm, filters = {}) {
+registrationSchema.statics.searchByName = function (searchTerm, filters = {}) {
   const query = {
     $text: { $search: searchTerm }
   };
@@ -336,7 +350,7 @@ registrationSchema.statics.searchByName = function(searchTerm, filters = {}) {
  * @param {Object} options - Optional MongoDB options (e.g., { session } for transactions)
  * @returns {Promise<Object>} - Update result
  */
-registrationSchema.statics.bulkConfirmByBatch = async function(batchId, options = {}) {
+registrationSchema.statics.bulkConfirmByBatch = async function (batchId, options = {}) {
   return await this.updateMany(
     { batch_id: batchId, status: REGISTRATION_STATUS.REGISTERED },
     { $set: { status: REGISTRATION_STATUS.CONFIRMED } },
@@ -349,7 +363,7 @@ registrationSchema.statics.bulkConfirmByBatch = async function(batchId, options 
  * @param {Object} filters - Optional filters
  * @returns {Promise<Object>} - Statistics
  */
-registrationSchema.statics.getStatistics = async function(filters = {}) {
+registrationSchema.statics.getStatistics = async function (filters = {}) {
   const matchStage = {};
 
   if (filters.event_id) {

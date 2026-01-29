@@ -39,6 +39,11 @@ const Settings = () => {
     default_currency: 'INR',
     maintenance_mode: false,
     registration_open: true,
+    payment_gateway: {
+      stripe: { publishable_key: '', secret_key: '', enabled: true },
+      razorpay: { key_id: '', key_secret: '', enabled: false },
+      offline: { enabled: true }
+    }
   });
 
   const { data: settings, isLoading: loadingSettings } = useSettings();
@@ -64,6 +69,21 @@ const Settings = () => {
         default_currency: settings.default_currency || 'INR',
         maintenance_mode: settings.maintenance_mode || false,
         registration_open: settings.registration_open || true,
+        payment_gateway: {
+          stripe: {
+            publishable_key: settings.payment_gateway?.stripe?.publishable_key || '',
+            secret_key: settings.payment_gateway?.stripe?.secret_key || '',
+            enabled: settings.payment_gateway?.stripe?.enabled ?? true
+          },
+          razorpay: {
+            key_id: settings.payment_gateway?.razorpay?.key_id || '',
+            key_secret: settings.payment_gateway?.razorpay?.key_secret || '',
+            enabled: settings.payment_gateway?.razorpay?.enabled ?? false
+          },
+          offline: {
+            enabled: settings.payment_gateway?.offline?.enabled ?? true
+          }
+        }
       });
     }
   }, [settings]);
@@ -112,6 +132,7 @@ const Settings = () => {
       showError(error.response?.data?.message || 'Failed to update settings');
     }
   };
+  // ... (keeping other handlers the same)
 
   // Helper function to download blob as file
   const downloadFile = (response, defaultFilename) => {
@@ -326,43 +347,25 @@ const Settings = () => {
             </Card.Header>
             <Card.Body>
               <div className="space-y-6">
-                {/* Razorpay */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium text-gray-900">Razorpay</h4>
-                    <Badge variant="success">Active</Badge>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        API Key ID
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                        value="rzp_test_••••••••••••••••"
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        API Secret
-                      </label>
-                      <input
-                        type="password"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                        value="••••••••••••••••••••••••"
-                        disabled
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 {/* Stripe */}
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-medium text-gray-900">Stripe</h4>
-                    <Badge variant="success">Active</Badge>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={settingsData.payment_gateway?.stripe?.enabled}
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
+                          payment_gateway: {
+                            ...settingsData.payment_gateway,
+                            stripe: { ...settingsData.payment_gateway.stripe, enabled: e.target.checked }
+                          }
+                        })}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mr-2"
+                      />
+                      <span className="text-sm text-gray-600">Enable</span>
+                    </div>
                   </div>
                   <div className="space-y-3">
                     <div>
@@ -371,9 +374,16 @@ const Settings = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                        value="pk_test_••••••••••••••••"
-                        disabled
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        value={settingsData.payment_gateway?.stripe?.publishable_key || ''}
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
+                          payment_gateway: {
+                            ...settingsData.payment_gateway,
+                            stripe: { ...settingsData.payment_gateway.stripe, publishable_key: e.target.value }
+                          }
+                        })}
+                        placeholder="pk_test_..."
                       />
                     </div>
                     <div>
@@ -382,9 +392,76 @@ const Settings = () => {
                       </label>
                       <input
                         type="password"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                        value="sk_test_••••••••••••••••"
-                        disabled
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        value={settingsData.payment_gateway?.stripe?.secret_key || ''}
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
+                          payment_gateway: {
+                            ...settingsData.payment_gateway,
+                            stripe: { ...settingsData.payment_gateway.stripe, secret_key: e.target.value }
+                          }
+                        })}
+                        placeholder="sk_test_..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Razorpay */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium text-gray-900">Razorpay</h4>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={settingsData.payment_gateway?.razorpay?.enabled}
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
+                          payment_gateway: {
+                            ...settingsData.payment_gateway,
+                            razorpay: { ...settingsData.payment_gateway.razorpay, enabled: e.target.checked }
+                          }
+                        })}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mr-2"
+                      />
+                      <span className="text-sm text-gray-600">Enable</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        API Key ID
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        value={settingsData.payment_gateway?.razorpay?.key_id || ''}
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
+                          payment_gateway: {
+                            ...settingsData.payment_gateway,
+                            razorpay: { ...settingsData.payment_gateway.razorpay, key_id: e.target.value }
+                          }
+                        })}
+                        placeholder="rzp_test_..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        API Secret
+                      </label>
+                      <input
+                        type="password"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        value={settingsData.payment_gateway?.razorpay?.key_secret || ''}
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
+                          payment_gateway: {
+                            ...settingsData.payment_gateway,
+                            razorpay: { ...settingsData.payment_gateway.razorpay, key_secret: e.target.value }
+                          }
+                        })}
+                        placeholder="Enter secret..."
                       />
                     </div>
                   </div>
@@ -397,16 +474,34 @@ const Settings = () => {
                       <h4 className="font-medium text-gray-900">Offline Payment</h4>
                       <p className="text-sm text-gray-600">Allow schools to upload payment receipts</p>
                     </div>
-                    <Badge variant="success">Enabled</Badge>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={settingsData.payment_gateway?.offline?.enabled}
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
+                          payment_gateway: {
+                            ...settingsData.payment_gateway,
+                            offline: { ...settingsData.payment_gateway.offline, enabled: e.target.checked }
+                          }
+                        })}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mr-2"
+                      />
+                      <span className="text-sm text-gray-600">Enable</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-gray-200">
-                  <Button variant="primary" disabled>
+                  <Button
+                    variant="primary"
+                    onClick={handleSaveSettings}
+                    isLoading={updateSettings.isPending}
+                  >
                     Update Payment Settings
                   </Button>
                   <p className="text-xs text-gray-500 mt-2">
-                    Payment configuration is managed via environment variables
+                    Settings will be saved to the database. Environment variables act as fallback.
                   </p>
                 </div>
               </div>

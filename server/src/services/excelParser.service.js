@@ -247,6 +247,8 @@ class ExcelParserService {
     const studentName = this._getFieldValue(rowData, ['student name']);
     const grade = this._getFieldValue(rowData, ['grade']);
     const section = this._getFieldValue(rowData, ['section']);
+    const studentEmail = this._getFieldValue(rowData, ['student email', 'email']);
+    const examDate = this._getFieldValue(rowData, ['exam date', 'exam_date']);
 
     // Skip completely empty rows
     if (!studentName && !grade && !section) {
@@ -276,11 +278,49 @@ class ExcelParserService {
       });
     }
 
+    // Validate Student Email if present
+    if (studentEmail && studentEmail.trim() !== '') {
+      if (!this._isValidEmail(studentEmail.trim())) {
+        errors.push({
+          row: rowNumber,
+          field: 'Student Email',
+          message: `Invalid email format: ${studentEmail}`
+        });
+      }
+    }
+
+    // Validate Exam Date if present
+    let parsedExamDate = null;
+    if (examDate && examDate.trim() !== '') {
+      if (!this._isValidDate(examDate.trim())) {
+        errors.push({
+          row: rowNumber,
+          field: 'Exam Date',
+          message: `Invalid date format. Use DD/MM/YYYY: ${examDate}`
+        });
+      } else {
+        // Parse date for native field
+        const parts = examDate.trim().match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);
+        if (parts) {
+          parsedExamDate = new Date(parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]));
+        }
+      }
+    }
+
     // Build dynamic data object
     const dynamicData = {};
 
     if (formSchema && formSchema.length > 0) {
       formSchema.forEach(field => {
+        // Skip if same as native fields (case insensitive check)
+        const label = field.field_label.toLowerCase();
+        const id = field.field_id.toLowerCase();
+
+        if (label === 'student email' || id === 'student_email' ||
+          label === 'exam date' || id === 'exam_date') {
+          return;
+        }
+
         const value = this._getFieldValue(rowData, [
           field.field_label.toLowerCase(),
           field.field_id.toLowerCase()
@@ -305,6 +345,8 @@ class ExcelParserService {
         student_name: studentName.trim(),
         grade: grade.trim(),
         section: section ? section.trim() : '',
+        student_email: studentEmail ? studentEmail.trim().toLowerCase() : '',
+        exam_date: parsedExamDate,
         dynamic_data: dynamicData
       },
       errors: []
@@ -440,7 +482,7 @@ class ExcelParserService {
       case FIELD_TYPES.TEXTAREA:
         if (field.validation_rules) {
           if (field.validation_rules.minLength != null &&
-              trimmedValue.length < field.validation_rules.minLength) {
+            trimmedValue.length < field.validation_rules.minLength) {
             errors.push({
               row: rowNumber,
               field: field.field_label,
@@ -448,7 +490,7 @@ class ExcelParserService {
             });
           }
           if (field.validation_rules.maxLength != null &&
-              trimmedValue.length > field.validation_rules.maxLength) {
+            trimmedValue.length > field.validation_rules.maxLength) {
             errors.push({
               row: rowNumber,
               field: field.field_label,

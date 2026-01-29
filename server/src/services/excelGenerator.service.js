@@ -134,7 +134,7 @@ class ExcelGeneratorService {
     this._addInstructionsSheet(workbook, event);
 
     // Build columns and collect dropdown/validation configs
-    const { columns, validationConfigs } = this._buildColumns(event.form_schema);
+    const { columns, validationConfigs } = this._buildColumns(event);
     dataSheet.columns = columns;
 
     // Style and protect header row
@@ -167,7 +167,12 @@ class ExcelGeneratorService {
    * Build columns from form schema
    * @private
    */
-  _buildColumns(formSchema) {
+  /**
+   * Build columns from form schema
+   * @private
+   */
+  _buildColumns(event) {
+    const formSchema = event.form_schema;
     const validationConfigs = [];
 
     // Default columns with metadata
@@ -178,9 +183,57 @@ class ExcelGeneratorService {
       { header: 'Section', key: 'section', width: 10, fieldType: 'text', required: false }
     ];
 
+    // Add Student Email (Optional by default, can be validated in parser if present)
+    columns.push({
+      header: 'Student Email',
+      key: 'student_email',
+      width: 25,
+      fieldType: 'email',
+      required: false
+    });
+
+    // Add Exam Date conditionally for multiple_dates events
+    if (event.schedule_type === 'multiple_dates') {
+      columns.push({
+        header: 'Exam Date',
+        key: 'exam_date',
+        width: 15,
+        fieldType: 'date',
+        required: true, // Required for multiple date selection
+        helpText: `Valid dates: ${event.event_dates ? event.event_dates.map(d => new Date(d).toLocaleDateString('en-GB')).join(', ') : 'Check event schedule'}`
+      });
+
+      // Add validation config for Exam Date
+      validationConfigs.push({
+        columnIndex: columns.length,
+        columnKey: 'exam_date',
+        fieldType: 'date',
+        fieldLabel: 'Exam Date',
+        required: true,
+        helpText: 'Enter the date of the exam'
+      });
+    }
+
+    // Add validation config for Student Email
+    validationConfigs.push({
+      columnIndex: 5, // S.No, Name, Grade, Section, Email is 5th
+      columnKey: 'student_email',
+      fieldType: 'email',
+      fieldLabel: 'Student Email',
+      required: false
+    });
+
     // Add dynamic columns from form_schema
     if (formSchema && formSchema.length > 0) {
       formSchema.forEach((field, index) => {
+        // Skip if same as native fields checks done in parser too
+        const label = field.field_label.toLowerCase();
+        const id = field.field_id.toLowerCase();
+        if (label === 'student email' || id === 'student_email' ||
+          label === 'exam date' || id === 'exam_date') {
+          return;
+        }
+
         const headerName = field.is_required ? `${field.field_label}*` : field.field_label;
         const colKey = field.field_id || `field_${index}`;
 
@@ -239,11 +292,26 @@ class ExcelGeneratorService {
       sno: 1,
       student_name: 'John Doe (DELETE THIS ROW)',
       grade: '10',
-      section: 'A'
+      section: 'A',
+      student_email: 'student@school.com'
     };
+
+    // Check if exam_date column exists
+    const hasExamDate = columns.some(c => c.key === 'exam_date');
+    if (hasExamDate) {
+      sampleData.exam_date = '15/01/2024';
+    }
 
     if (formSchema && formSchema.length > 0) {
       formSchema.forEach((field, index) => {
+        // Skip native fields
+        const label = field.field_label.toLowerCase();
+        const id = field.field_id.toLowerCase();
+        if (label === 'student email' || id === 'student_email' ||
+          label === 'exam date' || id === 'exam_date') {
+          return;
+        }
+
         const colKey = field.field_id || `field_${index}`;
         sampleData[colKey] = this._getSampleValueForField(field);
       });

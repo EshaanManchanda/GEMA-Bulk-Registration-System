@@ -8,6 +8,7 @@ const Payment = require('../../models/Payment');
 const Registration = require('../../models/Registration');
 const School = require('../../models/School');
 const Event = require('../../models/Event');
+const Settings = require('../../models/Settings');
 const stripeService = require('../../services/stripe.service');
 const storageService = require('../../services/storage.service');
 const invoiceService = require('../../services/invoice.service');
@@ -50,6 +51,16 @@ exports.initiatePayment = asyncHandler(async (req, res, next) => {
   let gatewayPaymentData;
 
   try {
+    // Get Stripe configuration
+    const settings = await Settings.getInstance();
+    const stripeConfig = settings.payment_gateway?.stripe;
+
+    // Determine publishable key
+    let publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+    if (stripeConfig?.enabled && stripeConfig?.publishable_key) {
+      publishableKey = stripeConfig.publishable_key;
+    }
+
     // Create Stripe payment intent
     const intentData = await stripeService.createPaymentIntent({
       amount: batch.total_amount,
@@ -68,7 +79,7 @@ exports.initiatePayment = asyncHandler(async (req, res, next) => {
     gatewayPaymentData = {
       payment_intent_id: intentData.payment_intent_id,
       client_secret: intentData.client_secret,
-      publishable_key: process.env.STRIPE_PUBLISHABLE_KEY
+      publishable_key: publishableKey
     };
 
     // Create payment record
