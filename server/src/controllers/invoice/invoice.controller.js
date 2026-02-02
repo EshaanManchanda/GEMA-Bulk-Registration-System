@@ -38,7 +38,7 @@ exports.generateInvoice = asyncHandler(async (req, res, next) => {
   }
 
   // Check if payment is completed
-  if (payment.payment_status !== 'completed') {
+  if (payment.status !== 'completed') {
     return next(new AppError('Invoice can only be generated for completed payments', 400));
   }
 
@@ -165,14 +165,15 @@ exports.regenerateInvoice = asyncHandler(async (req, res, next) => {
   }
 
   // Find payment
-  const payment = await Payment.findOne({ batch_id: batch._id });
+  const payment = await Payment.findOne({ batch_id: batch._id })
+    .sort({ created_at: -1 });
 
   if (!payment) {
     return next(new AppError('Payment not found for this batch', 404));
   }
 
   // Check if payment is completed
-  if (payment.payment_status !== 'completed') {
+  if (payment.status !== 'completed') {
     return next(new AppError('Invoice can only be generated for completed payments', 400));
   }
 
@@ -286,7 +287,8 @@ exports.bulkGenerateInvoices = asyncHandler(async (req, res, next) => {
   // Generate invoices
   for (const batch of batches) {
     try {
-      const payment = await Payment.findOne({ batch_id: batch._id });
+      const payment = await Payment.findOne({ batch_id: batch._id })
+        .sort({ created_at: -1 });
 
       if (!payment) {
         results.failed.push({

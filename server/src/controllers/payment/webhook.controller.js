@@ -107,9 +107,15 @@ async function handleStripePaymentSuccess(paymentIntent) {
       return;
     }
 
+    // Skip processing for superseded payments
+    if (payment.error_code === 'SUPERSEDED') {
+      logger.info(`Ignoring webhook for superseded payment: ${paymentIntentId}`);
+      return;
+    }
+
     // Update payment record
     payment.gateway_payment_id = paymentIntent.charges?.data[0]?.id || paymentIntentId;
-    payment.payment_status = PAYMENT_STATUS.COMPLETED;
+    payment.status = PAYMENT_STATUS.COMPLETED;
     payment.gateway_response = paymentIntent;
     payment.paid_at = new Date();
     await payment.save();
@@ -174,8 +180,14 @@ async function handleStripePaymentFailed(paymentIntent) {
       return;
     }
 
+    // Skip processing for superseded payments
+    if (payment.error_code === 'SUPERSEDED') {
+      logger.info(`Ignoring webhook for superseded payment: ${paymentIntentId}`);
+      return;
+    }
+
     // Update payment record
-    payment.payment_status = PAYMENT_STATUS.FAILED;
+    payment.status = PAYMENT_STATUS.FAILED;
     payment.gateway_response = paymentIntent;
     await payment.save();
 
@@ -288,11 +300,19 @@ async function handleStripeCheckoutCompleted(session) {
         const payment = await Payment.findOne({
           batch_id: batch._id,
           payment_gateway: 'stripe'
-        });
+        }).sort({ created_at: -1 });
 
         if (payment) {
+          // Skip processing for superseded payments
+          if (payment.error_code === 'SUPERSEDED') {
+            logger.info(
+              `Ignoring checkout webhook for superseded payment: ${sessionId}`
+            );
+            return;
+          }
+
           payment.gateway_order_id = paymentIntentId;
-          payment.payment_status = PAYMENT_STATUS.COMPLETED;
+          payment.status = PAYMENT_STATUS.COMPLETED;
           payment.paid_at = new Date();
           await payment.save();
 

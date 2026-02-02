@@ -432,7 +432,6 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
       payload = {
         ...data,
         form_schema: processedFormSchema,
-        form_schema: processedFormSchema,
         banner_url: bannerUrlToUse,
         posters,
         brochures,

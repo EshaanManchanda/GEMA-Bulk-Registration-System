@@ -207,6 +207,23 @@ class StripeService {
   }
 
   /**
+   * Cancel payment intent safely (no-throw for terminal states)
+   * @param {string} paymentIntentId - Stripe payment intent ID
+   * @returns {Promise<Object|null>} - Result or null if already terminal
+   */
+  async safeCancelPaymentIntent(paymentIntentId) {
+    try {
+      return await this.cancelPaymentIntent(paymentIntentId);
+    } catch (error) {
+      logger.warn(
+        `safeCancelPaymentIntent: could not cancel ${paymentIntentId}`,
+        error.message
+      );
+      return null;
+    }
+  }
+
+  /**
    * Create refund
    * @param {string} chargeId - Stripe charge ID
    * @param {number} amount - Amount to refund (optional, full refund if not provided)

@@ -227,7 +227,7 @@ exports.getRecentActivities = asyncHandler(async (req, res, next) => {
     .populate('event_id', 'title')
     .sort({ created_at: -1 })
     .limit(10)
-    .select('amount currency payment_status payment_mode created_at paid_at');
+    .select('amount currency status payment_mode created_at paid_at');
 
   // Get recent batches
   const recentBatches = await Batch.find()
@@ -258,9 +258,9 @@ exports.getRecentActivities = asyncHandler(async (req, res, next) => {
   recentPayments.forEach(payment => {
     activities.push({
       type: 'payment',
-      title: `Payment ${payment.payment_status}`,
+      title: `Payment ${payment.status}`,
       description: `${payment.school_id?.name || 'Unknown School'} - ${payment.event_id?.title || 'Unknown Event'}`,
-      status: payment.payment_status,
+      status: payment.status,
       timestamp: payment.paid_at || payment.created_at,
       metadata: {
         payment_id: payment._id,

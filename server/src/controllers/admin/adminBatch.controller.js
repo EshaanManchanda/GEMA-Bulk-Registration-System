@@ -2,6 +2,7 @@ const asyncHandler = require('../../middleware/async.middleware');
 const AppError = require('../../utils/appError');
 const Batch = require('../../models/Batch');
 const Payment = require('../../models/Payment');
+const { PAYMENT_STATUS } = require('../../utils/constants');
 
 /**
  * @desc    Get batch details
@@ -48,9 +49,10 @@ exports.verifyBatchPayment = asyncHandler(async (req, res, next) => {
     await batch.verifyOfflinePayment(req.user._id, notes);
 
     // Sync Payment record
-    const payment = await Payment.findOne({ batch_id: batch._id });
+    const payment = await Payment.findOne({ batch_id: batch._id })
+        .sort({ created_at: -1 });
     if (payment) {
-        payment.payment_status = 'completed';
+        payment.status = PAYMENT_STATUS.COMPLETED;
         payment.paid_at = new Date();
         payment.offline_payment_details = {
             ...payment.offline_payment_details,
@@ -86,9 +88,10 @@ exports.rejectBatchPayment = asyncHandler(async (req, res, next) => {
     await batch.rejectOfflinePayment(req.user._id, reason);
 
     // Sync Payment record
-    const payment = await Payment.findOne({ batch_id: batch._id });
+    const payment = await Payment.findOne({ batch_id: batch._id })
+        .sort({ created_at: -1 });
     if (payment) {
-        payment.payment_status = 'failed';
+        payment.status = PAYMENT_STATUS.FAILED;
         payment.offline_payment_details = {
             ...payment.offline_payment_details,
             verified_by: req.user._id,
@@ -175,8 +178,9 @@ exports.deleteBatch = asyncHandler(async (req, res, next) => {
     }
 
     // Check if payment exists and is completed
-    const existingPayment = await Payment.findOne({ batch_id: batch._id });
-    if (existingPayment && existingPayment.payment_status === 'completed') {
+    const existingPayment = await Payment.findOne({ batch_id: batch._id })
+        .sort({ created_at: -1 });
+    if (existingPayment && existingPayment.status === 'completed') {
         return next(new AppError(
             'Cannot delete batch with completed payment. Please contact support if this is required.',
             400

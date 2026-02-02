@@ -139,7 +139,7 @@ exports.getSchoolDetails = asyncHandler(async (req, res, next) => {
       {
         $match: {
           school_id: school._id,
-          payment_status: 'completed'
+          status: 'completed'
         }
       },
       {

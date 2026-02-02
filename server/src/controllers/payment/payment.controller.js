@@ -15,6 +15,36 @@ const invoiceService = require('../../services/invoice.service');
 const { PAYMENT_STATUS, PAYMENT_MODE, BATCH_STATUS } = require('../../utils/constants');
 
 /**
+ * Cancel old non-terminal payments for a batch before creating a new one.
+ * Marks them FAILED with error_code='SUPERSEDED' and cancels Stripe intents.
+ */
+async function supersedeOldPayments(batchId) {
+  const TERMINAL = [
+    PAYMENT_STATUS.COMPLETED,
+    PAYMENT_STATUS.REFUNDED,
+    PAYMENT_STATUS.FAILED
+  ];
+  const oldPayments = await Payment.find({
+    batch_id: batchId,
+    status: { $nin: TERMINAL }
+  });
+
+  for (const old of oldPayments) {
+    try {
+      if (old.payment_mode === PAYMENT_MODE.ONLINE && old.gateway_order_id) {
+        await stripeService.safeCancelPaymentIntent(old.gateway_order_id);
+      }
+      old.status = PAYMENT_STATUS.FAILED;
+      old.error_code = 'SUPERSEDED';
+      await old.save();
+      logger.info(`Superseded old payment ${old._id} for batch ${batchId}`);
+    } catch (err) {
+      logger.error(`Failed to supersede payment ${old._id}:`, err);
+    }
+  }
+}
+
+/**
  * @desc    Initiate online payment for batch
  * @route   POST /api/v1/payments/initiate
  * @access  Private (School)
@@ -38,13 +68,28 @@ exports.initiatePayment = asyncHandler(async (req, res, next) => {
     return next(new AppError('Batch has already been submitted', 400));
   }
 
-  // Check if payment already exists and is completed (allow PENDING, FAILED, and PROCESSING)
-  if (batch.payment_status === PAYMENT_STATUS.COMPLETED) {
-    return next(new AppError('Payment already completed for this batch', 400));
+  // Atomically claim the batch for payment processing
+  const gateway = 'stripe';
+  const lockedBatch = await Batch.findOneAndUpdate(
+    {
+      _id: batch._id,
+      payment_status: { $ne: PAYMENT_STATUS.COMPLETED }
+    },
+    {
+      payment_status: PAYMENT_STATUS.PROCESSING,
+      payment_mode: PAYMENT_MODE.ONLINE,
+      payment_gateway: gateway
+    },
+    { new: true }
+  );
+  if (!lockedBatch) {
+    return next(
+      new AppError('Payment already in progress or completed', 409)
+    );
   }
 
-  // Always use Stripe for all currencies
-  const gateway = 'stripe';
+  // Supersede any old non-terminal payments for this batch
+  await supersedeOldPayments(batch._id);
 
   let paymentData;
   let gatewayOrderId;
@@ -92,14 +137,8 @@ exports.initiatePayment = asyncHandler(async (req, res, next) => {
       payment_mode: PAYMENT_MODE.ONLINE,
       payment_gateway: gateway,
       gateway_order_id: gatewayOrderId,
-      payment_status: PAYMENT_STATUS.PENDING
+      status: PAYMENT_STATUS.PENDING
     });
-
-    // Update batch
-    batch.payment_status = PAYMENT_STATUS.PROCESSING;
-    batch.payment_mode = PAYMENT_MODE.ONLINE;
-    batch.payment_gateway = gateway;
-    await batch.save();
 
     logger.info(`Payment initiated: ${paymentData._id} for batch: ${batch.batch_reference} via ${gateway}`);
 
@@ -258,7 +297,7 @@ exports.verifyStripePayment = asyncHandler(async (req, res, next) => {
         batch_reference: batch.batch_reference,
         amount: payment.amount,
         currency: payment.currency,
-        payment_status: payment.payment_status,
+        payment_status: payment.status,
         receipt_url: paymentIntent.receipt_url
       }
     });
@@ -301,6 +340,27 @@ exports.initiateOfflinePayment = asyncHandler(async (req, res, next) => {
     return next(new AppError('Batch has already been submitted', 400));
   }
 
+  // Atomically claim the batch for offline payment processing
+  const lockedBatch = await Batch.findOneAndUpdate(
+    {
+      _id: batch._id,
+      payment_status: { $ne: PAYMENT_STATUS.COMPLETED }
+    },
+    {
+      payment_status: PAYMENT_STATUS.PENDING,
+      payment_mode: PAYMENT_MODE.OFFLINE
+    },
+    { new: true }
+  );
+  if (!lockedBatch) {
+    return next(
+      new AppError('Payment already in progress or completed', 409)
+    );
+  }
+
+  // Supersede any old non-terminal payments for this batch
+  await supersedeOldPayments(batch._id);
+
   // Upload receipt to storage (Cloudinary or local)
   const receiptUpload = await storageService.uploadReceipt(
     req.file.buffer,
@@ -326,10 +386,10 @@ exports.initiateOfflinePayment = asyncHandler(async (req, res, next) => {
     }
   });
 
-  // Update batch
+  // Update remaining batch fields (status already locked atomically)
   batch.payment_status = PAYMENT_STATUS.PENDING;
   batch.payment_mode = PAYMENT_MODE.OFFLINE;
-  batch.status = BATCH_STATUS.SUBMITTED; // Submitted but pending verification
+  batch.status = BATCH_STATUS.SUBMITTED;
   batch.offline_payment_details = {
     transaction_reference: transactionRef,
     receipt_url: receiptUpload.secure_url,
@@ -385,7 +445,7 @@ exports.initiateOfflinePayment = asyncHandler(async (req, res, next) => {
       batch_reference: batch.batch_reference,
       amount: payment.amount,
       currency: payment.currency,
-      payment_status: payment.payment_status,
+      payment_status: payment.status,
       receipt_url: receiptUpload.secure_url
     }
   });
@@ -413,7 +473,7 @@ exports.getPayment = asyncHandler(async (req, res, next) => {
   const payment = await Payment.findOne(query)
     .populate('school_id', 'name school_code contact_person')
     .populate('event_id', 'title event_slug')
-    .populate('batch_id', 'batch_reference student_count invoice_pdf_url status')
+    .populate('batch_id', 'batch_reference student_count invoice_pdf_url status total_amount currency')
     .populate('offline_payment_details.verified_by', 'name email');
 
   if (!payment) {
@@ -490,7 +550,7 @@ exports.verifyOfflinePayment = asyncHandler(async (req, res, next) => {
   }
 
   // Check if already verified
-  if (payment.payment_status === PAYMENT_STATUS.COMPLETED) {
+  if (payment.status === PAYMENT_STATUS.COMPLETED) {
     return next(new AppError('Payment already verified', 400));
   }
 
@@ -618,7 +678,7 @@ exports.rejectOfflinePayment = asyncHandler(async (req, res, next) => {
   }
 
   // Update payment
-  payment.payment_status = PAYMENT_STATUS.FAILED;
+  payment.status = PAYMENT_STATUS.FAILED;
   payment.offline_payment_details.verified_by = req.user.id;
   payment.offline_payment_details.verified_at = new Date();
   payment.offline_payment_details.verification_notes = `REJECTED: ${rejection_reason}`;

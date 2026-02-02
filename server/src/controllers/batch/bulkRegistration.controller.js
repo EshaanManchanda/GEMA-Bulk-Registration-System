@@ -486,8 +486,9 @@ exports.getBatch = asyncHandler(async (req, res, next) => {
     return next(new AppError('Batch not found', 404));
   }
 
-  // Fetch payment record for this batch
+  // Fetch latest payment record for this batch
   const payment = await Payment.findOne({ batch_id: batch._id })
+    .sort({ created_at: -1 })
     .select('payment_reference status payment_mode payment_gateway amount currency paid_at offline_payment_details gateway_payment_id');
 
   res.status(200).json({

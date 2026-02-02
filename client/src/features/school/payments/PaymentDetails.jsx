@@ -1,11 +1,12 @@
-import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import SchoolLayout from '../../../layouts/SchoolLayout';
 import { usePaymentDetails, useDownloadReceipt } from '../../../hooks/usePayments';
 import { Card, Badge, Button, Spinner } from '../../../components/ui';
 import { formatCurrency, formatDate, toTitleCase, capitalizeFirst } from '../../../utils/helpers';
-import { PAYMENT_STATUS, PAYMENT_MODE, BADGE_CLASSES, STATUS_VARIANTS } from '../../../utils/constants';
+import { PAYMENT_STATUS, PAYMENT_MODE, BATCH_STATUS, BADGE_CLASSES, STATUS_VARIANTS } from '../../../utils/constants';
 import { showError, showSuccess } from '../../../components/common/Toast';
+import PaymentSelectionModal from '../../../components/PaymentSelectionModal';
 
 /**
  * Payment Details Page
@@ -13,8 +14,32 @@ import { showError, showSuccess } from '../../../components/common/Toast';
  */
 const PaymentDetails = () => {
   const { paymentId } = useParams();
+  const navigate = useNavigate();
   const { data: payment, isLoading } = usePaymentDetails(paymentId);
   const downloadReceipt = useDownloadReceipt();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const canRetryPayment = payment
+    && (payment.status === PAYMENT_STATUS.FAILED
+      || payment.status === PAYMENT_STATUS.PENDING)
+    && payment.batch_id
+    && payment.batch_id.status === BATCH_STATUS.DRAFT;
+
+  const handleOpenRetryModal = () => {
+    const confirmed = window.confirm(
+      'This will cancel the previous payment attempt. Continue?'
+    );
+    if (confirmed) {
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handleRetryPayment = (mode) => {
+    setShowPaymentModal(false);
+    navigate(
+      `/school/payments/make-payment?batch=${payment.batch_id.batch_reference}&mode=${mode}`
+    );
+  };
 
   const handleDownloadReceipt = async () => {
     try {
@@ -241,6 +266,21 @@ const PaymentDetails = () => {
               </Card.Header>
               <Card.Body>
                 <div className="space-y-3">
+                  {canRetryPayment && (
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      onClick={handleOpenRetryModal}
+                      leftIcon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      }
+                    >
+                      Retry Payment
+                    </Button>
+                  )}
+
                   {payment.offline_payment_details?.receipt_url && (
                     <Button
                       variant="primary"
@@ -329,7 +369,9 @@ const PaymentDetails = () => {
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <p className="text-sm text-red-900 font-medium mb-1">Payment Failed</p>
                     <p className="text-sm text-red-800">
-                      The payment transaction failed. Please try again or contact support.
+                      {canRetryPayment
+                        ? 'The payment transaction failed. You can retry using the button above.'
+                        : 'The payment transaction failed. Please contact support for assistance.'}
                     </p>
                   </div>
                 )}
@@ -338,6 +380,16 @@ const PaymentDetails = () => {
           </div>
         </div>
       </div>
+
+      {showPaymentModal && (
+        <PaymentSelectionModal
+          batchReference={payment.batch_id.batch_reference}
+          amount={payment.batch_id?.total_amount || payment.amount}
+          currency={payment.batch_id?.currency || payment.currency}
+          onClose={() => setShowPaymentModal(false)}
+          onSelect={handleRetryPayment}
+        />
+      )}
     </SchoolLayout>
   );
 };
