@@ -62,6 +62,11 @@ const EventDetails = () => {
     }
   };
 
+  const handleCopy = (text, label) => {
+    navigator.clipboard.writeText(text);
+    showSuccess(`${label} copied to clipboard!`);
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -151,6 +156,16 @@ const EventDetails = () => {
             strokeWidth={2}
             d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
           />
+        </svg>
+      ),
+    },
+    {
+      id: 'configuration',
+      label: 'Configuration',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
     },
@@ -328,13 +343,13 @@ const EventDetails = () => {
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Registration Deadline</p>
                       <p className="text-lg font-medium text-gray-900">
-                        {formatDate(event?.registration_deadline)}
+                        {formatDate(event?.schedule?.registration_deadline || event?.registration_deadline)}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Registration Opens</p>
                       <p className="text-lg font-medium text-gray-900">
-                        {formatDate(event?.registration_start_date)}
+                        {formatDate(event?.schedule?.registration_start || event?.registration_start_date)}
                       </p>
                     </div>
                     <div>
@@ -355,6 +370,22 @@ const EventDetails = () => {
                         {formatCurrency(event?.base_fee_usd, 'USD')}
                       </p>
                     </div>
+                    {event?.discounted_fee_inr != null && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Discounted Fee (INR)</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          {formatCurrency(event.discounted_fee_inr, 'INR')}
+                        </p>
+                      </div>
+                    )}
+                    {event?.discounted_fee_usd != null && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Discounted Fee (USD)</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          {formatCurrency(event.discounted_fee_usd, 'USD')}
+                        </p>
+                      </div>
+                    )}
                     {event?.max_participants && (
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Max Participants</p>
@@ -368,6 +399,66 @@ const EventDetails = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Contact Information */}
+                  {(event?.contact_email || event?.contact_phone || event?.whatsapp_number) && (
+                    <div className="mt-6 pt-4 border-t">
+                      <p className="text-sm font-semibold text-gray-900 mb-3">Contact Information</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {event.contact_email && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Email</p>
+                            <p className="text-sm font-medium text-gray-900">{event.contact_email}</p>
+                          </div>
+                        )}
+                        {event.contact_phone && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">India Contact</p>
+                            <p className="text-sm font-medium text-gray-900">{event.contact_phone}</p>
+                          </div>
+                        )}
+                        {event.whatsapp_number && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">WhatsApp</p>
+                            <p className="text-sm font-medium text-gray-900">{event.whatsapp_number}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Additional Dates */}
+                  {(event?.last_date_1 || event?.last_date_2 || event?.mock_date_1 || event?.mock_date_2) && (
+                    <div className="mt-6 pt-4 border-t">
+                      <p className="text-sm font-semibold text-gray-900 mb-3">Additional Dates</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {event.last_date_1 && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Last Date 1</p>
+                            <p className="text-sm font-medium text-gray-900">{formatDate(event.last_date_1)}</p>
+                          </div>
+                        )}
+                        {event.last_date_2 && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Last Date 2</p>
+                            <p className="text-sm font-medium text-gray-900">{formatDate(event.last_date_2)}</p>
+                          </div>
+                        )}
+                        {event.mock_date_1 && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Mock Date 1</p>
+                            <p className="text-sm font-medium text-gray-900">{formatDate(event.mock_date_1)}</p>
+                          </div>
+                        )}
+                        {event.mock_date_2 && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Mock Date 2</p>
+                            <p className="text-sm font-medium text-gray-900">{formatDate(event.mock_date_2)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {event?.description && (
                     <div className="mt-6">
                       <p className="text-sm text-gray-600 mb-2">Description</p>
@@ -709,6 +800,194 @@ const EventDetails = () => {
         )}
 
         {activeTab === 'analytics' && <EventAnalytics />}
+
+        {activeTab === 'configuration' && (
+          <div className="space-y-6">
+            {/* Certificate Configuration */}
+            <Card>
+              <Card.Header>
+                <Card.Title>Certificate Configuration</Card.Title>
+              </Card.Header>
+              <Card.Body>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* India */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h4 className="font-semibold text-gray-900">India Region</h4>
+                      <Badge variant={event.certificate_config_india?.enabled ? 'success' : 'secondary'}>
+                        {event.certificate_config_india?.enabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </div>
+                    {event.certificate_config_india?.enabled ? (
+                      <dl className="space-y-2 text-sm">
+                        <div>
+                          <dt className="text-gray-500">Website URL</dt>
+                          <dd className="font-medium truncate">{event.certificate_config_india.website_url || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">API Endpoint</dt>
+                          <dd className="font-medium truncate">{event.certificate_config_india.certificate_issuance_url || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">Auto Generate</dt>
+                          <dd className="font-medium">{event.certificate_config_india.auto_generate ? 'Yes' : 'No'}</dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Configuration disabled</p>
+                    )}
+                  </div>
+
+                  {/* International */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h4 className="font-semibold text-gray-900">International Region</h4>
+                      <Badge variant={event.certificate_config_international?.enabled ? 'success' : 'secondary'}>
+                        {event.certificate_config_international?.enabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </div>
+                    {event.certificate_config_international?.enabled ? (
+                      <dl className="space-y-2 text-sm">
+                        <div>
+                          <dt className="text-gray-500">Website URL</dt>
+                          <dd className="font-medium truncate">{event.certificate_config_international.website_url || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">API Endpoint</dt>
+                          <dd className="font-medium truncate">{event.certificate_config_international.certificate_issuance_url || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">Auto Generate</dt>
+                          <dd className="font-medium">{event.certificate_config_international.auto_generate ? 'Yes' : 'No'}</dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Configuration disabled</p>
+                    )}
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
+
+            {/* Chatbot Configuration */}
+            <Card>
+              <Card.Header>
+                <Card.Title>Chatbot Configuration</Card.Title>
+              </Card.Header>
+              <Card.Body>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* India */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h4 className="font-semibold text-gray-900">India Region</h4>
+                      <Badge variant={event.chatbot_config_india?.enabled ? 'success' : 'secondary'}>
+                        {event.chatbot_config_india?.enabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </div>
+                    {event.chatbot_config_india?.enabled ? (
+                      <dl className="space-y-2 text-sm">
+                        <div>
+                          <dt className="text-gray-500">Website ID</dt>
+                          <dd className="flex items-center gap-2">
+                            <span className="font-medium font-mono bg-gray-50 px-2 py-1 rounded inline-block">
+                              {event.chatbot_config_india.website_id || '-'}
+                            </span>
+                            {event.chatbot_config_india.website_id && (
+                              <button
+                                onClick={() => handleCopy(event.chatbot_config_india.website_id, 'Website ID')}
+                                className="text-gray-400 hover:text-purple-600 transition-colors"
+                                title="Copy Website ID"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">API Key</dt>
+                          <dd className="flex items-center gap-2">
+                            <span className="font-medium font-mono text-xs text-gray-600 truncate">
+                              {event.chatbot_config_india.api_key ? '•'.repeat(20) + event.chatbot_config_india.api_key.slice(-4) : '-'}
+                            </span>
+                            {event.chatbot_config_india.api_key && (
+                              <button
+                                onClick={() => handleCopy(event.chatbot_config_india.api_key, 'API Key')}
+                                className="text-gray-400 hover:text-purple-600 transition-colors"
+                                title="Copy API Key"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                            )}
+                          </dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Configuration disabled</p>
+                    )}
+                  </div>
+
+                  {/* International */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h4 className="font-semibold text-gray-900">International Region</h4>
+                      <Badge variant={event.chatbot_config_international?.enabled ? 'success' : 'secondary'}>
+                        {event.chatbot_config_international?.enabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </div>
+                    {event.chatbot_config_international?.enabled ? (
+                      <dl className="space-y-2 text-sm">
+                        <div>
+                          <dt className="text-gray-500">Website ID</dt>
+                          <dd className="flex items-center gap-2">
+                            <span className="font-medium font-mono bg-gray-50 px-2 py-1 rounded inline-block">
+                              {event.chatbot_config_international.website_id || '-'}
+                            </span>
+                            {event.chatbot_config_international.website_id && (
+                              <button
+                                onClick={() => handleCopy(event.chatbot_config_international.website_id, 'Website ID')}
+                                className="text-gray-400 hover:text-purple-600 transition-colors"
+                                title="Copy Website ID"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">API Key</dt>
+                          <dd className="flex items-center gap-2">
+                            <span className="font-medium font-mono text-xs text-gray-600 truncate">
+                              {event.chatbot_config_international.api_key ? '•'.repeat(20) + event.chatbot_config_international.api_key.slice(-4) : '-'}
+                            </span>
+                            {event.chatbot_config_international.api_key && (
+                              <button
+                                onClick={() => handleCopy(event.chatbot_config_international.api_key, 'API Key')}
+                                className="text-gray-400 hover:text-purple-600 transition-colors"
+                                title="Copy API Key"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                            )}
+                          </dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Configuration disabled</p>
+                    )}
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
+          </div>
+        )}
 
         {/* Delete Modal */}
         <Modal

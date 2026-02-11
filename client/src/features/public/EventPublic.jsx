@@ -262,6 +262,14 @@ const EventPublic = () => {
                           </svg>
                           {formatDate(dateItem.date)}
                         </p>
+                        {dateItem.registration_deadline && (
+                          <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Reg. ends: {formatDate(dateItem.registration_deadline)}
+                          </p>
+                        )}
                       </div>
                     ))}
 
@@ -302,14 +310,14 @@ const EventPublic = () => {
                       </>
                     )}
 
-                    {event.registration_deadline && (
+                    {event.schedule?.registration_deadline && (
                       <div className="col-span-2">
                         <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Registration Deadline</p>
                         <p className="text-sm font-medium text-red-600 flex items-center gap-2">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          {formatDate(event.registration_deadline)}
+                          {formatDate(event.schedule.registration_deadline)}
                         </p>
                       </div>
                     )}
@@ -348,6 +356,27 @@ const EventPublic = () => {
                           </svg>
                           {event.max_participants.toLocaleString()}
                         </p>
+                      </div>
+                    )}
+
+                    {/* Mock Test Dates */}
+                    {(event.schedule?.mock_date_1 || event.schedule?.mock_date_2) && (
+                      <div className="col-span-2 border-t pt-2 mt-0">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Mock Test Dates</p>
+                        <div className="space-y-2">
+                          {event.schedule?.mock_date_1 && (
+                            <div>
+                              <p className="text-xs text-gray-500">Mock Date 1</p>
+                              <p className="text-sm font-medium text-gray-900">{formatDate(event.schedule.mock_date_1, true)}</p>
+                            </div>
+                          )}
+                          {event.schedule?.mock_date_2 && (
+                            <div>
+                              <p className="text-xs text-gray-500">Mock Date 2</p>
+                              <p className="text-sm font-medium text-gray-900">{formatDate(event.schedule.mock_date_2, true)}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

@@ -22,8 +22,7 @@ exports.createEvent = asyncHandler(async (req, res, next) => {
     grade_levels,
     event_start_date,
     event_end_date,
-    registration_start_date,
-    registration_deadline,
+
     base_fee_inr,
     base_fee_usd,
     bulk_discount_rules,
@@ -35,7 +34,12 @@ exports.createEvent = asyncHandler(async (req, res, next) => {
     schedule,
     posters,
     brochures,
-    notice_url
+    notice_url,
+    discounted_fee_inr,
+    discounted_fee_usd,
+    contact_email,
+    contact_phone,
+    whatsapp_number,
   } = req.body;
 
   // Check if event slug already exists
@@ -54,8 +58,7 @@ exports.createEvent = asyncHandler(async (req, res, next) => {
     grade_levels,
     event_start_date,
     event_end_date,
-    registration_start_date,
-    registration_deadline,
+
     base_fee_inr,
     base_fee_usd,
     bulk_discount_rules,
@@ -68,7 +71,12 @@ exports.createEvent = asyncHandler(async (req, res, next) => {
     schedule,
     posters,
     brochures,
-    notice_url
+    notice_url,
+    discounted_fee_inr,
+    discounted_fee_usd,
+    contact_email,
+    contact_phone,
+    whatsapp_number,
   });
 
   logger.info(`Event created: ${event.event_slug} by admin: ${req.user.id}`);
@@ -242,8 +250,7 @@ exports.updateEvent = asyncHandler(async (req, res, next) => {
     grade_levels,
     event_start_date,
     event_end_date,
-    registration_start_date,
-    registration_deadline,
+
     result_announced_date,
     base_fee_inr,
     base_fee_usd,
@@ -260,7 +267,14 @@ exports.updateEvent = asyncHandler(async (req, res, next) => {
     schedule,
     posters,
     brochures,
-    notice_url
+    notice_url,
+    chatbot_config_india,
+    chatbot_config_international,
+    discounted_fee_inr,
+    discounted_fee_usd,
+    contact_email,
+    contact_phone,
+    whatsapp_number,
   } = req.body;
 
   const event = await Event.findById(eventId);
@@ -280,8 +294,7 @@ exports.updateEvent = asyncHandler(async (req, res, next) => {
   if (grade_levels) event.grade_levels = grade_levels;
   if (event_start_date) event.event_start_date = event_start_date;
   if (event_end_date) event.event_end_date = event_end_date;
-  if (registration_start_date) event.registration_start_date = registration_start_date;
-  if (registration_deadline) event.registration_deadline = registration_deadline;
+
   if (result_announced_date !== undefined) event.result_announced_date = result_announced_date;
   if (base_fee_inr !== undefined) event.base_fee_inr = base_fee_inr;
   if (base_fee_usd !== undefined) event.base_fee_usd = base_fee_usd;
@@ -299,6 +312,13 @@ exports.updateEvent = asyncHandler(async (req, res, next) => {
   if (posters) event.posters = posters;
   if (brochures) event.brochures = brochures;
   if (notice_url !== undefined) event.notice_url = notice_url;
+  if (chatbot_config_india !== undefined) event.chatbot_config_india = chatbot_config_india;
+  if (chatbot_config_international !== undefined) event.chatbot_config_international = chatbot_config_international;
+  if (discounted_fee_inr !== undefined) event.discounted_fee_inr = discounted_fee_inr;
+  if (discounted_fee_usd !== undefined) event.discounted_fee_usd = discounted_fee_usd;
+  if (contact_email !== undefined) event.contact_email = contact_email;
+  if (contact_phone !== undefined) event.contact_phone = contact_phone;
+  if (whatsapp_number !== undefined) event.whatsapp_number = whatsapp_number;
 
   await event.save();
 

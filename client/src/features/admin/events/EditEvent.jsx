@@ -49,10 +49,11 @@ const EditEvent = () => {
     event_end_date: event.event_end_date?.split('T')[0] || '',
     event_dates: (event.schedule?.event_dates || []).map(d => ({
       ...d,
-      date: d.date ? d.date.split('T')[0] : ''
+      date: d.date ? d.date.split('T')[0] : '',
+      registration_deadline: d.registration_deadline ? d.registration_deadline.split('T')[0] : ''
     })),
-    registration_start_date: event.registration_start_date?.split('T')[0] || '',
-    registration_deadline: event.registration_deadline?.split('T')[0] || '',
+    registration_start_date: event.schedule?.registration_start?.split('T')[0] || event.registration_start_date?.split('T')[0] || '',
+    registration_deadline: event.schedule?.registration_deadline?.split('T')[0] || event.registration_deadline?.split('T')[0] || '',
     result_announced_date: event.result_announced_date?.split('T')[0] || '',
     base_fee_inr: event.base_fee_inr || '',
     base_fee_usd: event.base_fee_usd || '',
@@ -66,6 +67,13 @@ const EditEvent = () => {
     notice_url: event.notice_url || null,
     is_featured: event.is_featured || false,
     rules_document_url: event.rules_document_url || '',
+    discounted_fee_inr: event.discounted_fee_inr || event.discounted_fee || '',
+    discounted_fee_usd: event.discounted_fee_usd || '',
+    contact_email: event.contact_email || '',
+    contact_phone: event.contact_phone || '',
+    whatsapp_number: event.whatsapp_number || '',
+    mock_date_1: event.schedule?.mock_date_1 ? event.schedule.mock_date_1.slice(0, 16) : '',
+    mock_date_2: event.schedule?.mock_date_2 ? event.schedule.mock_date_2.slice(0, 16) : '',
     // Certificate Configuration
     certificate_config_india: event.certificate_config_india || {
       enabled: false,
@@ -86,6 +94,17 @@ const EditEvent = () => {
       api_key: '',
       template_id: '',
       auto_generate: false,
+    },
+    // Chatbot Configuration
+    chatbot_config_india: event.chatbot_config_india || {
+      enabled: false,
+      website_id: '',
+      api_key: '',
+    },
+    chatbot_config_international: event.chatbot_config_international || {
+      enabled: false,
+      website_id: '',
+      api_key: '',
     },
   }), [event]);
 

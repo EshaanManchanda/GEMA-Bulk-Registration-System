@@ -200,7 +200,12 @@ const EventsList = () => {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <p className="text-gray-600">Event Date</p>
-                      <p className="font-medium text-gray-900">{formatDate(event.event_date)}</p>
+                      <p className="font-medium text-gray-900">
+                        {event.schedule_type === 'single_date'
+                          ? formatDate(event.event_start_date)
+                          : `${formatDate(event.event_start_date)} - ${formatDate(event.event_end_date)}`
+                        }
+                      </p>
                     </div>
                     <div>
                       <p className="text-gray-600">Capacity</p>

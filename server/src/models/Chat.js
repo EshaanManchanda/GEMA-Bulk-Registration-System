@@ -37,7 +37,8 @@ const messageSchema = new mongoose.Schema({
     event_id: mongoose.Schema.Types.ObjectId,
     certificate_url: String,
     payment_link: String,
-    event_info: Object
+    event_info: Object,
+    faq_id: mongoose.Schema.Types.ObjectId
   }
 });
 
@@ -61,6 +62,11 @@ const chatSchema = new mongoose.Schema({
   event_context: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Event'
+  },
+  location: {
+    type: String,
+    enum: ['india', 'international', 'global'],
+    default: 'global'
   },
   is_active: {
     type: Boolean,

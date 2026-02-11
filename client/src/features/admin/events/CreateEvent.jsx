@@ -45,6 +45,7 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
     { label: 'Form Builder', description: 'Registration fields' },
     { label: 'Discounts & Media', description: 'Offers & banner' },
     { label: 'Certificate Settings', description: 'API configuration' },
+    { label: 'Chatbot Settings', description: 'Bot configuration' },
     { label: 'Review', description: 'Confirm & submit' },
   ];
 
@@ -104,28 +105,26 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
       }),
     registration_deadline: yup
       .string()
-      .required('Registration deadline is required')
+      .test('required-except-multiple', 'Registration deadline is required', function (value) {
+        const { schedule_type } = this.parent;
+        if (schedule_type === 'multiple_dates') return true;
+        return !!value;
+      })
       .test('is-before', 'Deadline must be before/on event start', function (value) {
-        const { event_start_date, schedule_type, event_dates } = this.parent;
-        // For multiple_dates, derive start date from event_dates array
-        let effectiveStartDate = event_start_date;
-        if (schedule_type === 'multiple_dates' && event_dates?.length > 0) {
-          const validDates = event_dates.filter(d => d.date).map(d => d.date);
-          if (validDates.length > 0) {
-            effectiveStartDate = [...validDates].sort()[0];
-          }
-        }
-        if (!value || !effectiveStartDate) return true;
-        // Compare date strings directly (YYYY-MM-DD format) to avoid timezone issues
+        const { event_start_date, schedule_type } = this.parent;
+        if (schedule_type === 'multiple_dates') return true;
+
+        if (!value || !event_start_date) return true;
         const deadlineDate = value.substring(0, 10);
-        const startDate = effectiveStartDate.substring(0, 10);
+        const startDate = event_start_date.substring(0, 10);
         return deadlineDate <= startDate;
       }),
     registration_start_date: yup
       .string()
       .nullable()
       .test('is-before-deadline', 'Registration start must be before deadline', function (value) {
-        const { registration_deadline } = this.parent;
+        const { registration_deadline, schedule_type } = this.parent;
+        if (schedule_type === 'multiple_dates') return true;
         if (!value || !registration_deadline) return true;
         const startDate = value.substring(0, 10);
         const deadlineDate = registration_deadline.substring(0, 10);
@@ -146,7 +145,13 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
     event_dates: yup.array().of(
       yup.object({
         label: yup.string(),
-        date: yup.string()
+        date: yup.string().required('Date is required'),
+        registration_deadline: yup.string().required('Deadline is required')
+          .test('is-before-date', 'Deadline must be before event date', function (value) {
+            const { date } = this.parent;
+            if (!value || !date) return true;
+            return value <= date;
+          })
       })
     ).test('min-dates', 'At least one event date is required', function (value) {
       const { schedule_type } = this.parent;
@@ -166,6 +171,13 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
     status: yup.string(),
     is_featured: yup.boolean().default(false),
     rules_document_url: yup.string().url('Must be a valid URL').nullable(),
+    discounted_fee_inr: yup.number().transform((value, orig) => orig === '' ? null : value).min(0, 'Must be positive').nullable().optional(),
+    discounted_fee_usd: yup.number().transform((value, orig) => orig === '' ? null : value).min(0, 'Must be positive').nullable().optional(),
+    contact_email: yup.string().email('Must be a valid email').nullable(),
+    contact_phone: yup.string().nullable(),
+    whatsapp_number: yup.string().nullable(),
+    mock_date_1: yup.string().nullable(),
+    mock_date_2: yup.string().nullable(),
   });
 
   const methods = useForm({
@@ -193,6 +205,13 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
       status: 'draft',
       is_featured: false,
       rules_document_url: '',
+      discounted_fee_inr: '',
+      discounted_fee_usd: '',
+      contact_email: '',
+      contact_phone: '',
+      whatsapp_number: '',
+      mock_date_1: '',
+      mock_date_2: '',
       certificate_config_india: {
         enabled: false,
         website_url: '',
@@ -212,6 +231,16 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
         api_key: '',
         template_id: '',
         auto_generate: false,
+      },
+      chatbot_config_india: {
+        enabled: false,
+        website_id: '',
+        api_key: '',
+      },
+      chatbot_config_international: {
+        enabled: false,
+        website_id: '',
+        api_key: '',
       },
     },
     mode: 'onChange',
@@ -401,16 +430,27 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
             : undefined,
       }));
 
-      // Build schedule object based on schedule_type
-      const schedule = {
-        registration_start: data.registration_start_date || null,
-        registration_deadline: data.registration_deadline,
-        result_date: data.result_announced_date || null
-      };
+      // Build schedule object — only include fields relevant
+      // to the chosen schedule_type
+      const schedule = {};
 
+      // Common fields (omit if empty)
+      if (data.registration_start_date) {
+        schedule.registration_start = data.registration_start_date;
+      }
+      if (data.registration_deadline) {
+        schedule.registration_deadline = data.registration_deadline;
+      }
+      if (data.result_announced_date) {
+        schedule.result_date = data.result_announced_date;
+      }
+      if (data.mock_date_1) schedule.mock_date_1 = data.mock_date_1;
+      if (data.mock_date_2) schedule.mock_date_2 = data.mock_date_2;
+
+      // Type-specific fields
       if (data.schedule_type === 'single_date') {
         schedule.event_date = data.event_start_date;
-        // Ensure event_end_date matches start date or is null to pass backend validation
+        // Backend requires event_end_date >= event_start_date
         data.event_end_date = data.event_start_date;
       } else if (data.schedule_type === 'date_range') {
         schedule.date_range = {
@@ -418,19 +458,35 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
           end: data.event_end_date
         };
       } else if (data.schedule_type === 'multiple_dates') {
-        schedule.event_dates = (data.event_dates || []).filter(d => d.date);
-        // Set start/end from first/last dates for backward compatibility
+        schedule.event_dates = (data.event_dates || [])
+          .filter(d => d.date)
+          .map(d => ({
+            label: d.label || undefined,
+            date: d.date,
+            registration_deadline: d.registration_deadline || undefined
+          }));
+        // Derive start/end from first/last dates for backend
         if (schedule.event_dates.length > 0) {
-          const sortedDates = [...schedule.event_dates].sort((a, b) =>
-            new Date(a.date) - new Date(b.date)
+          const sorted = [...schedule.event_dates].sort(
+            (a, b) => new Date(a.date) - new Date(b.date)
           );
-          data.event_start_date = sortedDates[0].date;
-          data.event_end_date = sortedDates[sortedDates.length - 1].date;
+          data.event_start_date = sorted[0].date;
+          data.event_end_date = sorted[sorted.length - 1].date;
         }
       }
 
+      // Strip fields that live inside schedule or are unused
+      const {
+        registration_start_date: _rsd,
+        registration_deadline: _rd,
+        mock_date_1: _md1,
+        mock_date_2: _md2,
+        event_dates: _ed,
+        ...restData
+      } = data;
+
       payload = {
-        ...data,
+        ...restData,
         form_schema: processedFormSchema,
         banner_url: bannerUrlToUse,
         posters,
@@ -487,6 +543,15 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
     handleSubmit(onSubmit)(e);
   };
 
+  const generateApiKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let apiKey = 'gema_';
+    for (let i = 0; i < 32; i++) {
+      apiKey += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return apiKey;
+  };
+
   return (
     <AdminLayout>
       <FormProvider {...methods}>
@@ -514,9 +579,11 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <h3 className="text-red-800 font-semibold mb-2">Please fix the following errors:</h3>
                 <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-                  {Object.entries(errors).map(([field, error]) => (
-                    <li key={field}>{field}: {error.message}</li>
-                  ))}
+                  {Object.entries(errors)
+                    .filter(([, error]) => error?.message)
+                    .map(([field, error]) => (
+                      <li key={field}>{field}: {error.message}</li>
+                    ))}
                 </ul>
               </div>
             </Card>
@@ -732,6 +799,9 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                         {...methods.register('event_start_date')}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        The day the event takes place
+                      </p>
                       {errors.event_start_date && (
                         <p className="text-sm text-red-600 mt-1">
                           {errors.event_start_date.message}
@@ -781,42 +851,59 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                       </label>
                       <div className="space-y-3">
                         {(watch('event_dates') || []).map((eventDate, index) => (
-                          <div key={index} className="flex gap-3 items-center">
-                            <input
-                              type="text"
-                              placeholder="Label (e.g., Round 1)"
-                              value={eventDate.label || ''}
-                              onChange={(e) => {
-                                const dates = [...(watch('event_dates') || [])];
-                                dates[index] = { ...dates[index], label: e.target.value };
-                                setValue('event_dates', dates);
-                              }}
-                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            />
-                            <input
-                              type="date"
-                              value={eventDate.date || ''}
-                              onChange={(e) => {
-                                const dates = [...(watch('event_dates') || [])];
-                                dates[index] = { ...dates[index], date: e.target.value };
-                                setValue('event_dates', dates);
-                              }}
-                              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const dates = [...(watch('event_dates') || [])];
-                                dates.splice(index, 1);
-                                setValue('event_dates', dates);
-                              }}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
+                          <React.Fragment key={index}>
+                            <div className="flex gap-3 items-center">
+                              <input
+                                type="text"
+                                placeholder="Label (e.g., Round 1)"
+                                value={eventDate.label || ''}
+                                onChange={(e) => {
+                                  const dates = [...(watch('event_dates') || [])];
+                                  dates[index] = { ...dates[index], label: e.target.value };
+                                  setValue('event_dates', dates);
+                                }}
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              />
+                              <input
+                                type="date"
+                                value={eventDate.date || ''}
+                                onChange={(e) => {
+                                  const dates = [...(watch('event_dates') || [])];
+                                  dates[index] = { ...dates[index], date: e.target.value };
+                                  setValue('event_dates', dates);
+                                }}
+                                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const dates = [...(watch('event_dates') || [])];
+                                  dates.splice(index, 1);
+                                  setValue('event_dates', dates);
+                                }}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="pl-3 pb-3 border-b border-gray-100 mb-3">
+                              <label className="block text-xs font-medium text-gray-500 mb-1">
+                                Registration Deadline for {eventDate.label || 'this date'}
+                              </label>
+                              <input
+                                type="date"
+                                value={eventDate.registration_deadline || ''}
+                                onChange={(e) => {
+                                  const dates = [...(watch('event_dates') || [])];
+                                  dates[index] = { ...dates[index], registration_deadline: e.target.value };
+                                  setValue('event_dates', dates);
+                                }}
+                                className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                              />
+                            </div>
+                          </React.Fragment>
                         ))}
                         <Button
                           type="button"
@@ -831,7 +918,7 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                         </Button>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        Add multiple event dates with optional labels
+                        Each date has its own registration deadline
                       </p>
                       {errors.event_dates && (
                         <p className="text-sm text-red-600 mt-1">{errors.event_dates.message}</p>
@@ -842,45 +929,53 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                     </div>
                   )}
 
-                  {/* Registration Dates */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Registration Start Date
-                      </label>
-                      <input
-                        type="date"
-                        {...methods.register('registration_start_date')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      {errors.registration_start_date && (
-                        <p className="text-sm text-red-600 mt-1">
-                          {errors.registration_start_date.message}
+                  {/* Registration Dates — hidden for multiple_dates (each date has its own deadline) */}
+                  {watch('schedule_type') !== 'multiple_dates' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Registration Start Date
+                        </label>
+                        <input
+                          type="date"
+                          {...methods.register('registration_start_date')}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          When registration opens for students
                         </p>
-                      )}
-                    </div>
+                        {errors.registration_start_date && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {errors.registration_start_date.message}
+                          </p>
+                        )}
+                      </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Registration Deadline <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        {...methods.register('registration_deadline')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      {errors.registration_deadline && (
-                        <p className="text-sm text-red-600 mt-1">
-                          {errors.registration_deadline.message}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Registration Deadline <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          {...methods.register('registration_deadline')}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Last date to accept registrations
                         </p>
-                      )}
+                        {errors.registration_deadline && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {errors.registration_deadline.message}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Result Announced Date */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Result Announced Date (Optional)
+                      Result Date (Optional)
                     </label>
                     <input
                       type="date"
@@ -888,7 +983,7 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Date when results will be announced and certificates become available
+                      When results will be announced and certificates become available
                     </p>
                     {errors.result_announced_date && (
                       <p className="text-sm text-red-600 mt-1">
@@ -959,6 +1054,138 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                     <p className="text-xs text-gray-500 mt-1">
                       Set a cap on total registrations (optional)
                     </p>
+                  </div>
+
+                  {/* Discounted Fees */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Discounted Fee - INR (Optional)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          ₹
+                        </span>
+                        <input
+                          type="number"
+                          {...methods.register('discounted_fee_inr')}
+                          placeholder="e.g., 450"
+                          min="0"
+                          step="0.01"
+                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Discounted price for India users
+                      </p>
+                      {errors.discounted_fee_inr && (
+                        <p className="text-sm text-red-600 mt-1">{errors.discounted_fee_inr.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Discounted Fee - USD (Optional)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          {...methods.register('discounted_fee_usd')}
+                          placeholder="e.g., 6"
+                          min="0"
+                          step="0.01"
+                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Discounted price for International users
+                      </p>
+                      {errors.discounted_fee_usd && (
+                        <p className="text-sm text-red-600 mt-1">{errors.discounted_fee_usd.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contact Information */}
+                  <div className="pt-4 border-t">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Contact Email
+                        </label>
+                        <input
+                          type="email"
+                          {...methods.register('contact_email')}
+                          placeholder="contact@example.com"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        {errors.contact_email && (
+                          <p className="text-sm text-red-600 mt-1">{errors.contact_email.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          India Contact Phone
+                        </label>
+                        <input
+                          type="text"
+                          {...methods.register('contact_phone')}
+                          placeholder="+91-89290 60276"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          WhatsApp Number
+                        </label>
+                        <input
+                          type="text"
+                          {...methods.register('whatsapp_number')}
+                          placeholder="+971-527809450"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mock Test Dates */}
+                  <div className="pt-4 border-t">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Mock Test Dates</h3>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Schedule practice/mock tests before the main event. Shown on public pages and used by the chatbot.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Mock Test 1
+                        </label>
+                        <input
+                          type="datetime-local"
+                          {...methods.register('mock_date_1')}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Date &amp; time for the first mock test
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Mock Test 2
+                        </label>
+                        <input
+                          type="datetime-local"
+                          {...methods.register('mock_date_2')}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Date &amp; time for the second mock test
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1365,8 +1592,118 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                 </div>
               )}
 
-              {/* Step 6: Review */}
+              {/* Step 6: Chatbot Settings */}
               {currentStep === 5 && (
+                <div className="space-y-8">
+                  <h2 className="text-xl font-semibold text-gray-900">Chatbot Settings</h2>
+                  <p className="text-gray-600">Configure AI Chatbot integration for India and International students</p>
+
+                  {/* India Configuration */}
+                  <div className="border border-gray-200 rounded-lg p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">India Region</h3>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          {...methods.register('chatbot_config_india.enabled')}
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Enable</span>
+                      </label>
+                    </div>
+
+                    {watch('chatbot_config_india.enabled') && (
+                      <div className="space-y-4 pt-4 border-t">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Website ID</label>
+                          <input
+                            type="text"
+                            {...methods.register('chatbot_config_india.website_id')}
+                            placeholder="Enter Website ID"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              {...methods.register('chatbot_config_india.api_key')}
+                              placeholder="Generate API Key"
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setValue('chatbot_config_india.api_key', generateApiKey())
+                                setValue('chatbot_config_india.website_id', generateApiKey())
+                              }}
+                            >
+                              Generate
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* International Configuration */}
+                  <div className="border border-gray-200 rounded-lg p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">International Region</h3>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          {...methods.register('chatbot_config_international.enabled')}
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Enable</span>
+                      </label>
+                    </div>
+
+                    {watch('chatbot_config_international.enabled') && (
+                      <div className="space-y-4 pt-4 border-t">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Website ID</label>
+                          <input
+                            type="text"
+                            {...methods.register('chatbot_config_international.website_id')}
+                            placeholder="Enter Website ID"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              {...methods.register('chatbot_config_international.api_key')}
+                              placeholder="Generate API Key"
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setValue('chatbot_config_international.api_key', generateApiKey())
+                                setValue('chatbot_config_international.website_id', generateApiKey())
+                              }}
+                            >
+                              Generate
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 7: Review */}
+              {currentStep === 6 && (
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold text-gray-900">Review & Confirm</h2>
 
@@ -1420,15 +1757,58 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                       </div>
                       <dl className="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                          <dt className="text-gray-600">Event Date:</dt>
-                          <dd className="font-medium">
-                            {watch('event_start_date')} to {watch('event_end_date')}
+                          <dt className="text-gray-600">Schedule Type:</dt>
+                          <dd className="font-medium capitalize">
+                            {watch('schedule_type')?.replace('_', ' ')}
                           </dd>
                         </div>
-                        <div>
-                          <dt className="text-gray-600">Registration Deadline:</dt>
-                          <dd className="font-medium">{watch('registration_deadline')}</dd>
-                        </div>
+                        {watch('schedule_type') === 'single_date' && (
+                          <div>
+                            <dt className="text-gray-600">Event Date:</dt>
+                            <dd className="font-medium">{watch('event_start_date')}</dd>
+                          </div>
+                        )}
+                        {watch('schedule_type') === 'date_range' && (
+                          <div>
+                            <dt className="text-gray-600">Event Dates:</dt>
+                            <dd className="font-medium">
+                              {watch('event_start_date')} to {watch('event_end_date')}
+                            </dd>
+                          </div>
+                        )}
+                        {watch('schedule_type') === 'multiple_dates' && (
+                          <div className="col-span-2">
+                            <dt className="text-gray-600">Event Dates:</dt>
+                            <dd className="font-medium">
+                              {(watch('event_dates') || [])
+                                .filter(d => d.date)
+                                .map(d => `${d.label ? d.label + ': ' : ''}${d.date}`)
+                                .join(', ') || 'None'}
+                            </dd>
+                          </div>
+                        )}
+                        {watch('schedule_type') !== 'multiple_dates' && watch('registration_deadline') && (
+                          <div>
+                            <dt className="text-gray-600">Registration Deadline:</dt>
+                            <dd className="font-medium">{watch('registration_deadline')}</dd>
+                          </div>
+                        )}
+                        {watch('result_announced_date') && (
+                          <div>
+                            <dt className="text-gray-600">Result Date:</dt>
+                            <dd className="font-medium">{watch('result_announced_date')}</dd>
+                          </div>
+                        )}
+                        {(watch('mock_date_1') || watch('mock_date_2')) && (
+                          <div className="col-span-2">
+                            <dt className="text-gray-600">Mock Tests:</dt>
+                            <dd className="font-medium">
+                              {[watch('mock_date_1'), watch('mock_date_2')]
+                                .filter(Boolean)
+                                .join(', ')}
+                            </dd>
+                          </div>
+                        )}
                         <div>
                           <dt className="text-gray-600">Fee (INR):</dt>
                           <dd className="font-medium">₹{watch('base_fee_inr')}</dd>
@@ -1437,6 +1817,36 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                           <dt className="text-gray-600">Fee (USD):</dt>
                           <dd className="font-medium">${watch('base_fee_usd')}</dd>
                         </div>
+                        {watch('discounted_fee_inr') && (
+                          <div>
+                            <dt className="text-gray-600">Discounted Fee (INR):</dt>
+                            <dd className="font-medium">₹{watch('discounted_fee_inr')}</dd>
+                          </div>
+                        )}
+                        {watch('discounted_fee_usd') && (
+                          <div>
+                            <dt className="text-gray-600">Discounted Fee (USD):</dt>
+                            <dd className="font-medium">${watch('discounted_fee_usd')}</dd>
+                          </div>
+                        )}
+                        {watch('contact_email') && (
+                          <div>
+                            <dt className="text-gray-600">Contact Email:</dt>
+                            <dd className="font-medium">{watch('contact_email')}</dd>
+                          </div>
+                        )}
+                        {watch('contact_phone') && (
+                          <div>
+                            <dt className="text-gray-600">India Contact:</dt>
+                            <dd className="font-medium">{watch('contact_phone')}</dd>
+                          </div>
+                        )}
+                        {watch('whatsapp_number') && (
+                          <div>
+                            <dt className="text-gray-600">WhatsApp:</dt>
+                            <dd className="font-medium">{watch('whatsapp_number')}</dd>
+                          </div>
+                        )}
                       </dl>
                     </div>
 
@@ -1474,6 +1884,35 @@ const CreateEvent = ({ mode = 'create', eventId = null, defaultValues = null }) 
                       <p className="text-sm text-gray-600">
                         {watch('bulk_discount_rules')?.length || 0} discount tier(s) configured
                       </p>
+                    </div>
+
+                    {/* Chatbot Settings */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-gray-900">Chatbot Settings</h3>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentStep(5)}
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <dt className="text-gray-600">India:</dt>
+                          <dd className="font-medium">
+                            {watch('chatbot_config_india.enabled') ? 'Enabled' : 'Disabled'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-600">International:</dt>
+                          <dd className="font-medium">
+                            {watch('chatbot_config_international.enabled') ? 'Enabled' : 'Disabled'}
+                          </dd>
+                        </div>
+                      </dl>
                     </div>
 
                     {/* Status */}

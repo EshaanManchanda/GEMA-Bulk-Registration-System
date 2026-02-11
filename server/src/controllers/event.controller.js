@@ -15,14 +15,7 @@ const getPublicEvents = asyncHandler(async (req, res) => {
   startOfToday.setHours(0, 0, 0, 0);
   const deadlineFilter = [
     { 'schedule.registration_deadline': { $gte: startOfToday } },
-    {
-      'schedule.registration_deadline': { $exists: false },
-      registration_deadline: { $gte: startOfToday }
-    },
-    {
-      'schedule.registration_deadline': { $exists: false },
-      registration_deadline: { $exists: false }
-    }
+    { 'schedule.registration_deadline': { $exists: false } }
   ];
   const query = { status: 'active', $and: [{ $or: deadlineFilter }] };
 

@@ -1,0 +1,233 @@
+{
+    "info": {
+        "_postman_id": "chatbot-api-collection",
+        "name": "Chatbot API",
+        "description": "API collection for Chatbot public endpoints including message sending, event data fetching, and FAQ operations.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Send Message",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"message\": \"Hello\",\n    \"sessionId\": \"optional-session-id\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/chatbot/message",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "chatbot",
+                        "message"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Get Event Data",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/v1/chatbot/event-data",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "chatbot",
+                        "event-data"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Get FAQs",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/v1/chatbot/faqs",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "chatbot",
+                        "faqs"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Search FAQs",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/v1/chatbot/faqs/search?q=event",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "chatbot",
+                        "faqs",
+                        "search"
+                    ],
+                    "query": [
+                        {
+                            "key": "q",
+                            "value": "event"
+                        }
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Find Similar FAQs",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"query\": \"How do I register?\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/chatbot/faqs/similar",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "chatbot",
+                        "faqs",
+                        "similar"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Detect Intent",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"message\": \"I want to register\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/chatbot/detect-intent",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "chatbot",
+                        "detect-intent"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Health Check",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/v1/chatbot/health",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "chatbot",
+                        "health"
+                    ]
+                }
+            },
+            "response": []
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:5050",
+            "type": "string"
+        },
+        {
+            "key": "api_key",
+            "value": "your_api_key_here",
+            "type": "string"
+        }
+    ]
+}

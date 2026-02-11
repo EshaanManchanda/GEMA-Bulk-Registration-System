@@ -55,8 +55,8 @@ exports.downloadTemplate = asyncHandler(async (req, res, next) => {
 
   // Check if registration is still open (with fallback for new schedule fields)
   const now = new Date();
-  const regStart = event.schedule?.registration_start || event.registration_start_date;
-  const regDeadline = event.schedule?.registration_deadline || event.registration_deadline;
+  const regStart = event.schedule?.registration_start;
+  const regDeadline = event.schedule?.registration_deadline;
 
   if (regStart && now < regStart) {
     logger.warn(`Template download failed: Registration has not started for ${event.title} (starts: ${regStart})`);
@@ -226,8 +226,8 @@ exports.uploadBatch = asyncHandler(async (req, res, next) => {
 
   // Date validation with fallback for new schedule fields
   const now = new Date();
-  const regStart = event.schedule?.registration_start || event.registration_start_date;
-  const regDeadline = event.schedule?.registration_deadline || event.registration_deadline;
+  const regStart = event.schedule?.registration_start;
+  const regDeadline = event.schedule?.registration_deadline;
   if (regStart && now < regStart) {
     return next(new AppError('Registration has not yet started', 400));
   }

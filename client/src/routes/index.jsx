@@ -101,6 +101,9 @@ import CreateEvent from '@/features/admin/events/CreateEvent';
 import EditEvent from '@/features/admin/events/EditEvent';
 import EventAnalytics from '@/features/admin/events/EventAnalytics';
 import ChatbotAnalytics from '@/features/admin/chatbot/ChatbotAnalytics';
+import FAQManager from '@/features/admin/chatbot/FAQManager';
+import ChatbotDashboard from '@/features/admin/chatbot/ChatbotDashboard';
+import ChatbotSettings from '@/features/admin/chatbot/ChatbotSettings';
 import GlobalAnalytics from '@/features/admin/analytics/GlobalAnalytics';
 import Settings from '@/features/admin/settings/Settings';
 import BrandSettings from '@/features/admin/settings/BrandSettings';
@@ -509,12 +512,42 @@ const AppRouter = () => {
         }
       />
 
+      {/* Chatbot Dashboard */}
+      <Route
+        path="/admin/chatbot"
+        element={
+          <AdminRoute>
+            <ChatbotDashboard />
+          </AdminRoute>
+        }
+      />
+
       {/* Chatbot Analytics */}
       <Route
         path="/admin/chatbot/analytics"
         element={
           <AdminRoute>
             <ChatbotAnalytics />
+          </AdminRoute>
+        }
+      />
+
+      {/* FAQ Manager */}
+      <Route
+        path="/admin/chatbot/faqs"
+        element={
+          <AdminRoute>
+            <FAQManager />
+          </AdminRoute>
+        }
+      />
+
+      {/* Chatbot Settings */}
+      <Route
+        path="/admin/chatbot/settings"
+        element={
+          <AdminRoute>
+            <ChatbotSettings />
           </AdminRoute>
         }
       />

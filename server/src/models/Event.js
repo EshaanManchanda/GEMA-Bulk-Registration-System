@@ -143,10 +143,18 @@ const eventSchema = new mongoose.Schema({
     required: [true, 'Base fee in INR is required'],
     min: [0, 'Fee cannot be negative']
   },
+  discounted_fee_inr: {
+    type: Number,
+    min: [0, 'Discounted fee cannot be negative']
+  },
   base_fee_usd: {
     type: Number,
     required: [true, 'Base fee in USD is required'],
     min: [0, 'Fee cannot be negative']
+  },
+  discounted_fee_usd: {
+    type: Number,
+    min: [0, 'Discounted fee cannot be negative']
   },
   form_schema: {
     type: [fieldSchema],
@@ -176,19 +184,7 @@ const eventSchema = new mongoose.Schema({
       message: 'Event end date must be after or on start date'
     }
   },
-  registration_start_date: {
-    type: Date
-  },
-  registration_deadline: {
-    type: Date,
-    required: [true, 'Registration deadline is required'],
-    validate: {
-      validator: function (v) {
-        return v <= this.event_start_date;
-      },
-      message: 'Registration deadline must be before or on event start date'
-    }
-  },
+
   result_announced_date: {
     type: Date,
     validate: {
@@ -232,13 +228,16 @@ const eventSchema = new mongoose.Schema({
     event_date: { type: Date },
     event_dates: [{
       label: { type: String, trim: true },
-      date: { type: Date }
+      date: { type: Date },
+      registration_deadline: { type: Date }
     }],
     date_range: {
       start: { type: Date },
       end: { type: Date }
     },
-    result_date: { type: Date }
+    result_date: { type: Date },
+    mock_date_1: { type: Date },
+    mock_date_2: { type: Date }
   },
   metrics: {
     wishlist_count: { type: Number, default: 0 },
@@ -266,6 +265,19 @@ const eventSchema = new mongoose.Schema({
     default: []
   },
   notice_url: {
+    type: String,
+    trim: true
+  },
+  // Contact & additional info (for chatbot dynamic tags)
+  contact_email: {
+    type: String,
+    trim: true
+  },
+  contact_phone: {
+    type: String,
+    trim: true
+  },
+  whatsapp_number: {
     type: String,
     trim: true
   },
@@ -355,6 +367,34 @@ const eventSchema = new mongoose.Schema({
       default: false
     }
   },
+  chatbot_config_india: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    website_id: {
+      type: String,
+      trim: true
+    },
+    api_key: {
+      type: String,
+      trim: true
+    }
+  },
+  chatbot_config_international: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    website_id: {
+      type: String,
+      trim: true
+    },
+    api_key: {
+      type: String,
+      trim: true
+    }
+  },
   created_at: {
     type: Date,
     default: Date.now
@@ -377,7 +417,7 @@ const eventSchema = new mongoose.Schema({
 // ===============================================
 
 eventSchema.index({ status: 1, event_start_date: 1 });
-eventSchema.index({ status: 1, registration_deadline: 1 });
+eventSchema.index({ 'schedule.registration_deadline': 1, status: 1 });
 eventSchema.index({ created_at: -1 });
 eventSchema.index({ category: 1, status: 1 });
 eventSchema.index({ is_featured: 1, status: 1 });
@@ -392,15 +432,35 @@ eventSchema.index({ is_featured: 1, status: 1 });
  */
 eventSchema.virtual('is_registration_open').get(function () {
   const now = new Date();
-  // Use new schedule fields with fallback to legacy fields
-  const regStart = this.schedule?.registration_start || this.registration_start_date;
-  const regDeadline = this.schedule?.registration_deadline || this.registration_deadline;
+  const eventActive = this.status === EVENT_STATUS.ACTIVE;
+
+  if (!eventActive) return false;
+
+  // For multiple dates, check if ANY date is still open for registration
+  if (this.schedule_type === 'multiple_dates' && this.schedule?.event_dates?.length > 0) {
+    return this.schedule.event_dates.some(dateObj => {
+      // If specific deadline exists, check it
+      if (dateObj.registration_deadline) {
+        return now <= dateObj.registration_deadline;
+      }
+      // Fallback to general deadline if specific one doesn't exist (though it should)
+      const generalDeadline = this.schedule?.registration_deadline;
+      if (generalDeadline) {
+        return now <= generalDeadline;
+      }
+      // If no deadline, assume open until event date
+      return dateObj.date ? now <= dateObj.date : true;
+    });
+  }
+
+  // For single/range, use general registration dates
+  const regStart = this.schedule?.registration_start;
+  const regDeadline = this.schedule?.registration_deadline;
 
   const registrationStarted = !regStart || now >= regStart;
   const registrationNotEnded = !regDeadline || now <= regDeadline;
-  const eventActive = this.status === EVENT_STATUS.ACTIVE;
 
-  return eventActive && registrationStarted && registrationNotEnded;
+  return registrationStarted && registrationNotEnded;
 });
 
 /**
@@ -441,12 +501,32 @@ eventSchema.virtual('days_until_event').get(function () {
  * Days until registration closes
  */
 eventSchema.virtual('days_until_registration_closes').get(function () {
-  if (!this.registration_deadline) return null;
-
   const now = new Date();
-  if (this.registration_deadline <= now) return 0;
+  let deadline = this.schedule?.registration_deadline;
 
-  const diffTime = Math.abs(this.registration_deadline - now);
+  // For multiple dates, find the latest deadline that hasn't passed (or just the latest one)
+  // Logic: User might want to know when the *next* closing is, or the *final* closing.
+  // Let's go with: closest future deadline.
+  if (this.schedule_type === 'multiple_dates' && this.schedule?.event_dates?.length > 0) {
+    const futureDeadlines = this.schedule.event_dates
+      .filter(d => d.registration_deadline && d.registration_deadline > now)
+      .map(d => d.registration_deadline);
+
+    if (futureDeadlines.length > 0) {
+      // Sort to find closest
+      futureDeadlines.sort((a, b) => a - b);
+      deadline = futureDeadlines[0];
+    } else {
+      // If no future deadlines from specific dates, maybe fallback to general or return null (closed)
+      // Check if general deadline is in future
+      if (!deadline || deadline <= now) return 0;
+    }
+  }
+
+  if (!deadline) return null;
+  if (deadline <= now) return 0;
+
+  const diffTime = Math.abs(deadline - now);
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
 });
@@ -613,7 +693,10 @@ eventSchema.methods.updateConversionRate = async function () {
 eventSchema.statics.findActive = function () {
   return this.find({
     status: EVENT_STATUS.ACTIVE,
-    registration_deadline: { $gte: new Date() }
+    $or: [
+      { 'schedule.registration_deadline': { $gte: new Date() } },
+      { 'schedule.event_dates.registration_deadline': { $gte: new Date() } }
+    ]
   }).sort({ event_start_date: 1 });
 };
 

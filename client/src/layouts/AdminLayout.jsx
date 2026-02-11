@@ -20,6 +20,20 @@ const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  // Initialize with Chatbot expanded if current path is within chatbot
+  const [expandedSections, setExpandedSections] = useState(() => {
+    const path = window.location.pathname;
+    return {
+      'Chatbot': path.startsWith('/admin/chatbot')
+    };
+  });
+
+  const toggleSection = (name) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [name]: !prev[name]
+    }));
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -99,8 +113,8 @@ const AdminLayout = ({ children }) => {
       ),
     },
     {
-      name: 'Chatbot Analytics',
-      path: '/admin/chatbot/analytics',
+      name: 'Chatbot',
+      path: '/admin/chatbot',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -111,6 +125,12 @@ const AdminLayout = ({ children }) => {
           />
         </svg>
       ),
+      children: [
+        { name: 'Overview', path: '/admin/chatbot' },
+        { name: 'Analytics', path: '/admin/chatbot/analytics' },
+        { name: 'FAQ Manager', path: '/admin/chatbot/faqs' },
+        { name: 'Settings', path: '/admin/chatbot/settings' },
+      ]
     },
     {
       name: 'Media Library',
@@ -268,25 +288,66 @@ const AdminLayout = ({ children }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 transition-transform duration-300 z-20 lg:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 transition-transform duration-300 z-20 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <nav className="p-4 space-y-1">
           {navigation.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsSidebarOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive(item.path)
-                  ? 'bg-purple-50 text-purple-600 font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {item.icon}
-              <span>{item.name}</span>
-            </Link>
+            <div key={item.name}>
+              {item.children ? (
+                <>
+                  <button
+                    onClick={() => toggleSection(item.name)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${isActive(item.path)
+                      ? 'bg-purple-50 text-purple-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.icon}
+                      <span>{item.name}</span>
+                    </div>
+                    <svg
+                      className={`w-4 h-4 transition-transform ${expandedSections[item.name] ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {expandedSections[item.name] && (
+                    <div className="ml-9 space-y-1 mt-1">
+                      {item.children.map((child) => (
+                        <Link
+                          key={child.path}
+                          to={child.path}
+                          onClick={() => setIsSidebarOpen(false)}
+                          className={`block px-4 py-2 rounded-lg text-sm transition-colors ${location.pathname === child.path
+                            ? 'bg-purple-100 text-purple-700 font-medium'
+                            : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                        >
+                          {child.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link
+                  to={item.path}
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive(item.path)
+                    ? 'bg-purple-50 text-purple-600 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                >
+                  {item.icon}
+                  <span>{item.name}</span>
+                </Link>
+              )}
+            </div>
           ))}
         </nav>
       </aside>

@@ -237,6 +237,14 @@ const EventDetails = () => {
                           </svg>
                           {formatDate(dateItem.date)}
                         </p>
+                        {dateItem.registration_deadline && (
+                          <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Reg. ends: {formatDate(dateItem.registration_deadline)}
+                          </p>
+                        )}
                       </div>
                     ))}
 
@@ -277,14 +285,14 @@ const EventDetails = () => {
                       </>
                     )}
 
-                    {event.registration_deadline && (
+                    {(event.schedule?.registration_deadline || event.registration_deadline) && (
                       <div className="col-span-2">
                         <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Registration Deadline</p>
                         <p className="text-sm font-medium text-red-600 flex items-center gap-2">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          {formatDate(event.registration_deadline)}
+                          {formatDate(event.schedule?.registration_deadline || event.registration_deadline)}
                         </p>
                       </div>
                     )}
